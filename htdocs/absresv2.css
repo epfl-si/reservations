@@ -1,0 +1,36 @@
+.alert		{	background-color: yellow;	padding:5px;}
+.redbox 	{	border: 1px solid #ff0000;	background-color : yellow; 	padding:8px;	text-align: center;	font-weight: bold;}
+.msgbox 	{	border: 1px solid #2e8b57;	padding:4px;	font-weight: normal;}
+.editbox 	{ 	border: 1px solid #2e8b57; 	background-color : #eeeeee; 	padding:4px ;	font-weight: bold;}
+.right		{ text-align:right; }
+#top-head {	padding: 10px;    font-size: 18px;    background-color: #999c98;    color: #ffffff;	font-weight: bold;}
+.box 		 {float: left; width: 250px; padding: 10px;}
+.wrap 		 {	width:100%; float:left; padding:10px; border:solid;}
+.header_cell { background-color: #E3E3E3; text-align:left; padding: 2px 4px 2px 4px; border: 1px solid #777777; border-collapse: collapse; border-spacing:0px;}
+.bottom_lined {	border-left: solid 1px #777777; border-bottom: solid 1px #777777; border-collapse: collapse; border-spacing:0px; padding: 2px;}
+#indented { margin-left:20px;}
+#red_bold_txt {	color:red;	font-weight: bold;}
+td.tpart { width:20%;	text-align:center; padding:3px;}
+#tr_alt { background-color: #dddddd; }
+.td_ul { border-bottom: 1px solid black; padding:2px; }
+.prive_div { width: 460px; float: left; height: 200px; padding: 4px; border: 1px solid #aaaaaa; text-align:right; font-weight: bold; background-color:#E9F2F1;	margin:10px; }
+.button 	{  width: 90%;  margin:4px;  text-align:center;  padding: 5px;  text-decoration: none;  border: solid #555555 1px;  background: #5DC4E3; }  
+table.soldes {border:0px; padding: 0px; border-spacing:0; border-collapse:collapse;}
+td.soldesplus 	 {width:100px; border: 2px solid #aaaaaa; padding: 2px; border-collapse:collapse; text-align:right; }
+td.soldesminus 	 {width:100px; border: 2px solid #aaaaaa; padding: 2px; border-collapse:collapse; text-align:right; }
+td.crt	 	 {width:100px; padding: 2px; border-collapse:collapse; font-weight:bold; text-align:right;}
+td.header 	 {padding: 2px; border-collapse:collapse; text-align:right; background-color:#C2CBD1; color: white;}
+td.color 	 {width:100px; padding: 2px; border-collapse:collapse; text-align:right; background-color:#E3E3E3;}
+td.color-clear {width:100px; padding: 2px; border-collapse:collapse; text-align:right; background-color:#eeeeee;}
+td.header_soldes {padding: 2px; border-collapse:collapse; text-align:right; background-color:#C2CBD1; color: black;}
+.plain_solde {width:100%;float:left; font-size:smaller;font-weight:normal;padding:2px 0px 5px 0px; background-color:#eeeeee;}
+.box1		{border: solid 1px #999999; padding: 0px 0px 10px 0px; background-color: #eeeeee;}
+.box2		{width:100%; background-color: #bbbbbb; padding: 10px 0px 10px 0px;}
+.consulter 	{float:left;width:98%; padding:4px; border: 1px solid #aaaaaa; background-color:#eeeeee; }
+td.underline {padding:5px; border-bottom: 1px solid #aaaaaa;}
+.mybutton	{padding-left:20px;padding-right:20px; text-align:center;background-color:yellow;border-radius:5px;}
+.mybutton_plain	{padding-left:20px;padding-right:20px; text-align:center;border-radius:5px;background-color:white;}
+.myhr		{margin-top:5px;margin-bottom:5px;background-color:#aaa;}
+.red_li 	{ margin-left:15px; padding-left:5px; list-style-image: url('/.icons/red_triangle.gif') ;}
+
+.valid_button{margin-top: 20px; margin-bottom: 20px; padding: 10px; padding-bottom: 15px; font-size: 110%; }
