@@ -72,8 +72,8 @@ $LAST  				= 'le dernier';
 	'Novembre',
 	'Décembre',
 	);
-@years = (2000..2012);
-$MAXDATE = '20200101';
+# @years = (2000..2012);
+# $MAXDATE = '20300101';
 
 # ----------- colors ---------------------------
 $lightgrey	= 'lightgrey';
@@ -432,7 +432,7 @@ sub alpha_sort {
 	return ($l1 cmp $l2);
 }
 #_____________
-sub pr_date_choice {
+sub pr_date_choice_OLD {
    my ($text, $name, $def) = @_;
    my (@days, $i);
    my ($d) = substr ($def, 8, 2);

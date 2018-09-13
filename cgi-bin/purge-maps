@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+#
+#  [ purge-maps ]
+#
+#  Reservation des salles de conferences - nettoyage des ficheirs .map
+#
+#  Copyright 1995-2010 Ecole Polytechnique Federale de Lausanne (EPFL)
+#  Author:  Ion CIONCA [cionca@epfl.ch Oct 1995]
+
+my $delete	= 1;
+my $mapsdir	=  '/var/www/vhosts/reservations.epfl.ch/htdocs/.maps';
+
+warn "--> purge-maps \n";
+
+print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
+
+opendir(my $dh, $mapsdir) || die "Can't opendir $mapsdir: $!";
+foreach my $obj (readdir($dh)) {
+	next if $obj =~ /^\./;
+
+	opendir(my $dho, "$mapsdir/$obj") || die "Can't opendir $mapsdir$obj: $!";
+	print "<li>directory : $mapsdir/$obj</li>";
+	foreach my $file (readdir($dho)) {
+		next if $file =~ /^\./;
+		if ($delete) {
+			print "delete file : $mapsdir/$obj/$file<br>";
+			unlink "$mapsdir/$obj/$file" or warn "unable to unlink $mapsdir/$obj/$file: $!\n";
+		}
+	}
+	print "delete directory : $mapsdir/$obj/$file<hr>";
+	rmdir "$mapsdir/$obj" or warn "unable to remove directory $mapsdir/$obj: $!\n" if $delete;
+	closedir $dh;
+}
+closedir $dh;
+    

@@ -2368,6 +2368,98 @@ sub checkConflicts {
 
 #__________________
 sub resConflict {
+  my ($objID, $res_id, $debut, $fin, $pool_request, $refdates) = @_;
+
+  return unless $objID and $refdates and $debut and $fin;
+
+  my $conflicts;
+  my $obj_dispo = $userObjects{$objID}->{objdata}->{pool} - $pool_request;
+  my @dates  	= @$refdates;
+  @$refdates 	= ();
+  foreach my $date (@dates) {
+		$date 			 = substr($date,0,4)."-".substr($date,4,2)."-".substr($date,6,2);
+		my $reserved = 0;
+		my $sql = qq{select * from dates, res where 
+			dates.date = ? and
+			res.id=dates.res_id and
+			res.obj_id = ?
+			order by date,hdeb
+		};
+		my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
+		$sth->execute (($date, $objID)) or die "database fatal error : execute : $DBI::errstr";
+		while (my $data = $sth->fetchrow_hashref) {
+			next if $res_id == $data->{res_id};
+			if (
+				($debut ge $data->{hdeb} and $debut lt $data->{hfin}) or
+				($fin   gt $data->{hdeb} and $fin   le $data->{hfin}) or
+				($debut le $data->{hdeb} and $fin   ge $data->{hfin}) 
+			) {
+				$conflicts->{$date}->{$data->{obj_id}}->{"$data->{hdeb}:$data->{hfin}"} = { 
+					sciper => $data->{sciper}, 
+					nom		 => $data->{nom}, 
+					res_id => $data->{res_id}, 
+					nb_obj => $data->{pool}, 
+				};
+				$reserved += $data->{pool};
+			}
+		}
+		if ( $obj_dispo - $reserved >= 0 ) {
+			my $dateref = $date;
+				 $dateref =~ s/\-//g;
+			push @$refdates, $dateref;	# - valid date, put it back
+			delete $conflicts->{$date};
+		}
+  }
+
+  if ( scalar keys %$conflicts ) {
+		my $pool = $userObjects{$objID}->{objdata}->{pool} if $userObjects{$objID}->{objdata}->{pool} > 1;
+		print "
+		<h4><font color=red>Conflits de dates ou plus de ressources disponibles</font></h4><br>
+		Il y a déjà des réservations pour <b>$userObjects{$objID}->{objdata}->{nom}</b> $pool pour les dates suivantes
+		<style>
+		th { font-weight: bold; background: #dddddd; margin: 0; }
+		td { padding: 2px 10px 0 5px; border-bottom: 1px solid #aaaaaa; }
+		</style>
+		<table cellspacing=0 cellpadding=0 style='background: #eeeeee;'><th>date<th>de<th>à<th>nb. d'objets<th>réservé pour<th>par
+		";
+  	foreach my $date (keys %$conflicts) {
+  		my $conflObj = $conflicts->{$date};
+  		foreach my $obj_id (keys %$conflObj) {
+				foreach my $period (keys %{$conflObj->{$obj_id}}) {
+					my ($hdeb, $hfin) = split /:/, $period;
+					$date =~ s/\-//g;
+					my $sciper = $conflObj->{$obj_id}->{$period}->{sciper};
+					my $res_id = $conflObj->{$obj_id}->{$period}->{res_id};
+					my $nom 	 = $conflObj->{$obj_id}->{$period}->{nom};
+					my $nb_obj = $conflObj->{$obj_id}->{$period}->{nb_obj};
+					print qq{
+					<tr>
+						<td>}. &rev_date($date). qq{
+						<td>$hdeb
+						<td>$hfin
+					};
+					print qq{
+						<td align=middle>$pool / $nb_obj
+						<td><a href=$thescript/disp_res?res_id=$res_id>$nom
+						<td>$dinfo{$sciper}->{nom}&nbsp;$dinfo{$sciper}->{prenom}
+						</a>};
+				}
+			}  			
+  	}
+		print "</table><hr>";
+ 	}
+	
+	unless (scalar @$refdates) {	# - no dates
+		my $errtxt  = "Réservation refusée. ";
+		   $errtxt .= "<br>Vérifier la disponibilité d'objets du pool de cette ressource" if $userObjects{$objID}->{objdata}->{pool} > 1;
+		&erreur ($errtxt, 1);
+	} else {
+		print qq{<p><span style="color:red;font-weight:bold;">Les dates en conflit ont été enlevées de la liste ci-dessous.</span></p>} if scalar keys %$conflicts;
+  }
+}
+
+#__________________
+sub resConflict_OLD {
   my ($objID, $res_id, $debut, $fin, $pool, $refdates) = @_;
 
   return unless $objID and $refdates and $debut and $fin;
@@ -2377,45 +2469,44 @@ sub resConflict {
   my @dates  	= @$refdates;
   @$refdates 	= ();
   foreach my $date (@dates) {
-  	$date = substr($date,0,4)."-".substr($date,4,2)."-".substr($date,6,2);
-
-	my $reserved = 0;
-
-	my $sql = qq{select * from dates, res where 
+		$date 			 = substr($date,0,4)."-".substr($date,4,2)."-".substr($date,6,2);
+		my $reserved = 0;
+		my $sql = qq{select * from dates, res where 
 		dates.date = ? and
 		res.id=dates.res_id and
 		res.obj_id = ?
 		order by date,hdeb
-	};
-	my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($date, $objID)) or die "database fatal error : execute : $DBI::errstr";
-	while (my $data = $sth->fetchrow_hashref) {
-		next if $res_id == $data->{res_id};
-		if (
-			($debut ge $data->{hdeb} and $debut lt $data->{hfin}) or
-			($fin   gt $data->{hdeb} and $fin   le $data->{hfin}) or
-			($debut le $data->{hdeb} and $fin   ge $data->{hfin}) 
-		) {
-			push @conflicts, "$data->{res_id}\t$date\t$data->{hdeb}\t$data->{hfin}]\t$data->{nom}\t$data->{sciper}\t$data->{pool}";
-			$reserved += $data->{pool};
+		};
+		my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
+		$sth->execute (($date, $objID)) or die "database fatal error : execute : $DBI::errstr";
+		while (my $data = $sth->fetchrow_hashref) {
+			next if $res_id == $data->{res_id};
+			if (
+				($debut ge $data->{hdeb} and $debut lt $data->{hfin}) or
+				($fin   gt $data->{hdeb} and $fin   le $data->{hfin}) or
+				($debut le $data->{hdeb} and $fin   ge $data->{hfin}) 
+			) {
+				push @conflicts, "$data->{res_id}\t$date\t$data->{hdeb}\t$data->{hfin}]\t$data->{nom}\t$data->{sciper}\t$data->{pool}";
+				$reserved += $data->{pool};
+			}
 		}
-	}
-	if ( $obj_dispo - $reserved >= 0 ) {
-		$date =~ s/\-//g;
-		push @$refdates, $date;	# - valid date, put it back
-	}
+		if ( $obj_dispo - $reserved >= 0 ) {
+			$date =~ s/\-//g;
+			push @$refdates, $date;	# - valid date, put it back
+		}
   }
+
   if ( scalar @conflicts ) {
-  	my $pool = qq{ [ nb. obj : $userObjects{$objID}->{objdata}->{pool} ] } if $userObjects{$objID}->{objdata}->{pool} > 1;
-	print "
+		my $pool = qq{ [ nb. obj : $userObjects{$objID}->{objdata}->{pool} ] } if $userObjects{$objID}->{objdata}->{pool} > 1;
+		print "
 		<h4><font color=red>Conflits de dates ou plus de ressources disponibles</font></h4><br>
 		Il y a déjà des réservations pour <b>$userObjects{$objID}->{objdata}->{nom}</b> $pool pour les dates suivantes
-	<style>
-	  th { font-weight: bold; background: #dddddd; margin: 0; }
-	  td { padding: 2px 10px 0 5px; border-bottom: 1px solid #aaaaaa; }
-	</style>
-	<table cellspacing=0 cellpadding=0 style='background: #eeeeee;'><th>date<th>de<th>à<th>nb. d'objets<th>réservé pour<th>par
-	";
+		<style>
+		th { font-weight: bold; background: #dddddd; margin: 0; }
+		td { padding: 2px 10px 0 5px; border-bottom: 1px solid #aaaaaa; }
+		</style>
+		<table cellspacing=0 cellpadding=0 style='background: #eeeeee;'><th>date<th>de<th>à<th>nb. d'objets<th>réservé pour<th>par
+		";
   	foreach (@conflicts) {
 		my ($res_id, $date, $hdeb, $hfin, $nom, $sciper, $pool) = split (/\t/, $_);
 		$date =~ s/\-//g;
@@ -2580,16 +2671,14 @@ sub add_res {
 			my $sql = qq{update res set datefin=? where id=?};
 			my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
 			$sth->execute (($CONTENTS{date}, $CONTENTS{res_id})) or die "database fatal error : execute : $DBI::errstr";
-			
 			footpage ();
-
 		}
 		
-		my %res 		 = getRes($CONTENTS{res_id});
-		$CONTENTS{date}	 =~ s/\-//g;
-		$CONTENTS{date}  = $crt_date if $CONTENTS{date} < $crt_date;
-		$CONTENTS{date}	 = get_next_n_day($CONTENTS{date} , 1);
-		my $next_date 	 = $LAST_DATE;
+		my %res 		 		= getRes($CONTENTS{res_id});
+		$CONTENTS{date}	=~ s/\-//g;
+		$CONTENTS{date} = $crt_date if $CONTENTS{date} < $crt_date;
+		$CONTENTS{date}	= get_next_n_day($CONTENTS{date} , 1);
+		my $next_date 	= $LAST_DATE;
 		
 		my $hdeb = substr($res{hdeb},0,2);
 		my $mdeb = substr($res{hdeb},3,2);
@@ -2603,7 +2692,7 @@ sub add_res {
 			<form action=$thescript/done_res name=form method=POST>
 			  <input type=hidden name=mode   	value=2>
 			  <input type=hidden name=pass   	value=0>
-			  <input type=hidden name=op 	 	value=$CONTENTS{op}>
+			  <input type=hidden name=op 	 		value=$CONTENTS{op}>
 			  <input type=hidden name=user 	 	value=$res{sciper}>
 			  <input type=hidden name=res_id 	value=$CONTENTS{res_id}>		
 			  <input type=hidden name=objID 	value=$res{obj_id}>		
