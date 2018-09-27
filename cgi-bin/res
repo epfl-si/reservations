@@ -80,7 +80,7 @@ if ($DEBUG) {
 
 my $NOTIFYUSER 	= '';
 
-#$login_as 			= '118873';
+$login_as 			= '104689';
 
 %CONTENTS  = &loadargs ();
 
@@ -1685,96 +1685,98 @@ sub listRes {
   }
   
   my ($tmp_date, $predate, $crt_salle);
-  foreach my $res ( @crt_res) {
-	my $res_id = $res->{res_id};
-	my $date   = $res->{date};
-	$date 	   =~ s/\-//g;
-	my $obj_id = $res->{obj_id};
-	my $sciper = $res->{sciper};
-	if ($objID  and $objID ne 'toutes') {
-		next unless $objID =~ /\b$obj_id\b/;
-	}
-	if ($sciper_todo) {
-		next unless $sciper eq $sciper_todo;
-	}
-	my $nom		= $res->{nom};
-	
-	# - filter
-	if ($CONTENTS{motcle}) {
-		my $found = map {$nom =~ m/\b$_\b/i} @filter;
-		next unless $found;
-	}
-	
-	my $hdeb	= $res->{hdeb};
-	my $hfin	= $res->{hfin};
-	my $unite	= $res->{unite};
-	my $pool	= $userObjects{$obj_id}->{objdata}->{pool} > 1 ? $res->{pool} : '-';
-	my $salle	= $userObjects{$obj_id}->{objdata}->{nom};
-	next unless $date ge $d1 and $date le $d2;
-	my $dayname = substr(get_day_name ($date), 0, 2);
-
-	my $style;
-	if (substr($predate, 0, 8) eq $date) {
-	  if ($crt_salle eq $salle) {
-		if (substr($predate,8,5) le $hdeb  and $hdeb lt substr($predate,13,5))	{
-			$style = qq{style="background-color:red;color:white;"} if $userObjects{$objID}->{objdata}->{pool} == 1;
+  my $done;
+	foreach my $res ( @crt_res) {
+		my $res_id = $res->{res_id};
+		my $date   = $res->{date};
+		$date 	   =~ s/\-//g;
+		my $obj_id = $res->{obj_id};
+		my $sciper = $res->{sciper};
+		if ($objID  and $objID ne 'toutes') {
+			next unless $objID =~ /\b$obj_id\b/;
 		}
-	  } else {
-			$crt_salle = $salle
-	  }
-	} else {
-		$crt_salle = $salle unless ($crt_salle eq $salle)
-	}	
-	$predate = $date.$hdeb.$hfin;	
-	
-	getUserData($sciper) unless defined $dinfo{$sciper};
-
-	if ($CONTENTS{csv}) {
-		$salle =~ s/;//g;
-		$nom   =~ s/;//g;
-		$user  = qq{$dinfo{$sciper}->{nom} $dinfo{$sciper}->{prenom}};
-		$user  =~ s/;//g;
-
-		my $unitsigle 	= getUnitById($unite) if $unite;
-
-		getUserData ($sciper) unless defined $dinfo{$sciper};
-
-		unless ($unite) {
-			map { if ($dinfo{$sciper}->{accreds}->{$_}->{ordre} == 1) {
-				  	$unite 		= $_;
-				  	$unitsigle 	= $dinfo{$sciper}->{accreds}->{$_}->{sigle};
-				  }
-			} keys %{$dinfo{$sciper}->{accreds}};
+		if ($sciper_todo) {
+			next unless $sciper eq $sciper_todo;
 		}
+		my $nom		= $res->{nom};
+	
+		# - filter
+		if ($CONTENTS{motcle}) {
+			my $found = map {$nom =~ m/\b$_\b/i} @filter;
+			next unless $found;
+		}
+	
+		my $hdeb	= $res->{hdeb};
+		my $hfin	= $res->{hfin};
+		my $unite	= $res->{unite};
+		my $pool	= $userObjects{$obj_id}->{objdata}->{pool} > 1 ? $res->{pool} : '-';
+		my $salle	= $userObjects{$obj_id}->{objdata}->{nom};
+		next unless $date ge $d1 and $date le $d2;
+		my $dayname = substr(get_day_name ($date), 0, 2);
 
-		$output .= qq{$date;$hdeb;$hfin;$salle;$nom;$sciper;$user;$unite;$unitsigle\r};
-
-	} else {
-		$output .= qq{<tr id="$tr_style"  $style>}; 
-		$tr_style = $tr_style eq 'tr_alt' ? '' : 'tr_alt' ;
-		if ($tmp_date ne $date) {
-			$output .= sprintf qq{<td align=center width=80><span style="float:left;">$dayname</span>&nbsp;%s\n},&rev_date($date);
-			$tmp_date = $date;
+		my $style;
+		if (substr($predate, 0, 8) eq $date) {
+			if ($crt_salle eq $salle) {
+			if (substr($predate,8,5) le $hdeb  and $hdeb lt substr($predate,13,5))	{
+				$style = qq{style="background-color:red;color:white;"} if $userObjects{$objID}->{objdata}->{pool} == 1;
+			}
+			} else {
+				$crt_salle = $salle
+			}
 		} else {
-			$output .= "<td  width=80><img src=/.icons/dot.gif>\n";
+			$crt_salle = $salle unless ($crt_salle eq $salle)
+		}	
+		$predate = $date.$hdeb.$hfin;	
+	
+		getUserData($sciper) unless defined $dinfo{$sciper};
+
+		if ($CONTENTS{csv}) {
+			$salle =~ s/;//g;
+			$nom   =~ s/;//g;
+			$user  = qq{$dinfo{$sciper}->{nom} $dinfo{$sciper}->{prenom}};
+			$user  =~ s/;//g;
+
+			my $unitsigle 	= getUnitById($unite) if $unite;
+
+			getUserData ($sciper) unless defined $dinfo{$sciper};
+
+			unless ($unite) {
+				map { if ($dinfo{$sciper}->{accreds}->{$_}->{ordre} == 1) {
+							$unite 		= $_;
+							$unitsigle 	= $dinfo{$sciper}->{accreds}->{$_}->{sigle};
+						}
+				} keys %{$dinfo{$sciper}->{accreds}};
+			}
+
+			$output .= qq{$date;$hdeb;$hfin;$salle;$nom;$sciper;$user;$unite;$unitsigle\r};
+
+		} else {
+			$output .= qq{<tr id="$tr_style"  $style>}; 
+			$tr_style = $tr_style eq 'tr_alt' ? '' : 'tr_alt' ;
+			if ($tmp_date ne $date) {
+				$output .= sprintf qq{<td align=center width=80><span style="float:left;">$dayname</span>&nbsp;%s\n},&rev_date($date);
+				$tmp_date = $date;
+			} else {
+				$output .= "<td  width=80><img src=/.icons/dot.gif>\n";
+			}
+			$output .= "
+			<td align=center width=60>$hdeb
+			<td align=center width=60>$hfin
+			<td width=120>$salle
+			<td width=50 align=center>$pool
+			<td align=left width=180><a href=$thescript/disp_res?res_id=$res_id>$nom</a>
+			";
+			$output .= "<td align=left width=200>$dinfo{$sciper}->{nom}&nbsp;$dinfo{$sciper}->{prenom}" unless  $no_userdata;
+	#		$output .= "<td align=left width=50>$sciper" unless  $no_userdata;
 		}
-		$output .= "
-		<td align=center width=60>$hdeb
-		<td align=center width=60>$hfin
-		<td width=120>$salle
-		<td width=50 align=center>$pool
-		<td align=left width=180><a href=$thescript/disp_res?res_id=$res_id>$nom</a>
-		";
-		$output .= "<td align=left width=200>$dinfo{$sciper}->{nom}&nbsp;$dinfo{$sciper}->{prenom}" unless  $no_userdata;
-#		$output .= "<td align=left width=50>$sciper" unless  $no_userdata;
+		$done = 1;
 	}
-  }
 
   if ($CONTENTS{csv}) {
   	$output;
   } else {
-	$output .= "</table>\n";
-  	print $output;
+		$output .= "</table>\n";
+  	print $output if $done;
   }
 
 }
@@ -1900,79 +1902,73 @@ sub main_graph{
 
   foreach my $objID (sort {lc($userObjects{$a}->{objdata}->{nom}) cmp lc($userObjects{$b}->{objdata}->{nom})} @objIDs) {
   	next unless $objID;
-	
-	my @cnflcts    = checkConflicts($objID, '1');
-	my $hascnflcts = scalar @cnflcts ? qq{<img src="/.icons/warning.gif" align="middle"> conflits => <a href="$thescript/listres?objID=$objID&graph_type=M&date1=$file_name">affichage liste</a> } : '';
-
-	my $obj = $allObjects{$objID}->{objdata};
-	if ($obj->{visible} eq 'r' and ! exists ($userObjects{$objID})) {
-		print qq{
-			Ressource <b>$obj->{nom}</b> - visibilité en accès restreint - <a href=$thescript/search?op=obj&nom_obj=$obj->{nom}>contacter ses administrateurs</a> pour plus de détails
-		};
-		next;
-	}
+		my @cnflcts    = checkConflicts($objID, '1');
+		my $hascnflcts = scalar @cnflcts ? qq{<img src="/.icons/warning.gif" align="middle"> conflits => <a href="$thescript/listres?objID=$objID&graph_type=M&date1=$file_name">affichage liste</a> } : '';
+		my $obj = $allObjects{$objID}->{objdata};
+		if ($obj->{visible} eq 'r' and ! exists ($userObjects{$objID})) {
+			print qq{
+				Ressource <b>$obj->{nom}</b> - visibilité en accès restreint - <a href=$thescript/search?op=obj&nom_obj=$obj->{nom}>contacter ses administrateurs</a> pour plus de détails
+			};
+			next;
+		}
     my $objDir 	   = $mapsdir.$objID;
     my $nom_salle  = $obj->{nom};
   	my $image_file = qq{$objDir/${file_name}.gif};
   	my $map_file   = qq{$objDir/${file_name}.map};
   	unless (-d $objDir) {
   		mkdir ($objDir, 0775)  or erreur ("** create obj dir  [$objDir] : $!", 1);
-	}
-	open (MAP, ">$map_file") or erreur ("** err open map_file : $map_file", 1);
+		}
+		open (MAP, ">$map_file") or erreur ("** err open map_file : $map_file", 1);
 	
-	$img = GD::Simple->new($gwidth+$offsetx+2,$ghight+$offsety+2);
-	$img->font(gdSmallFont);
+		$img = GD::Simple->new($gwidth+$offsetx+2,$ghight+$offsety+2);
+		$img->font(gdSmallFont);
 	
-	draw_rect (1, 1, $gwidth+$offsetx+1, $ghight+$offsety+1, 1, 'white');
-	draw_rect ($offsetx, $offsety, $gwidth, $ghight, 1, 'ivory');
-	draw_text ($offsetx, $offsety+12, $textcol, "Heure");
+		draw_rect (1, 1, $gwidth+$offsetx+1, $ghight+$offsety+1, 1, 'white');
+		draw_rect ($offsetx, $offsety, $gwidth, $ghight, 1, 'ivory');
+		draw_text ($offsetx, $offsety+12, $textcol, "Heure");
 	
-	draw_month ($ghight, $mm, $aa) if ($graph_type eq 'M');
-	draw_week  ($ghight, $dd1) 	   if ($graph_type eq 'W');
-	draw_salle( $objID, $dd1, $dd2, $graph_type);
+		draw_month ($ghight, $mm, $aa) if ($graph_type eq 'M');
+		draw_week  ($ghight, $dd1) 	   if ($graph_type eq 'W');
+		draw_salle( $objID, $dd1, $dd2, $graph_type);
 	
-	open (OUT, ">$image_file");
-	binmode OUT;
-	print OUT $img->gif;
-	close OUT;
-	close MAP;
+		open (OUT, ">$image_file");
+		binmode OUT;
+		print OUT $img->gif;
+		close OUT;
+		close MAP;
 
-  	my $maps_url = qq{/.maps/${objID}};
+		my $maps_url = qq{/.maps/${objID}};
+		my $path_info = $CONTENTS{path_info} ? $CONTENTS{path_info}  : $ENV{PATH_INFO};
+		$path_info =~ s#^/##;
+		my $descr = $CONTENTS{show_descr} ? $obj->{descr} : qq{<div style="width:80%; margin-left:20px; height:50px; overflow: scroll; border: 1px solid #aaaaaa;">$obj->{descr}</div>};
+		
+		my $objects;
+		foreach my $obj_id (@objIDs) {
+			next unless $obj_id;
+			$objects .= qq{objID=$obj_id&};
+		}
+	
+		if ($graph_type eq 'M') {
+			my $prev_year = $aa;$prev_month = $mm - 1; if ($prev_month < 1)  {$prev_month = 12; $prev_year = $aa -1;}
+			my $next_year = $aa;$next_month = $mm + 1; if ($next_month > 12) {$next_month = 1;  $next_year = $aa +1;}
+			my $pdate	 = sprintf "01/%02d/%4d", $prev_month, $prev_year;
+			my $ndate	 = sprintf "01/%02d/%4d", $next_month, $next_year;
+			print qq{<hr>Ressource : <b>$nom_salle</b>, $mois_noms[$mm] $aa  <a href=$thescript/$path_info?${objects}date1=$pdate&graph_type=M&show_descr=$CONTENTS{show_descr}>précédent</a> | <a href=$thescript/$path_info?${objects}date1=$ndate&graph_type=M&show_descr=$CONTENTS{show_descr}>suivant</a>  $hascnflcts<br>
+			$descr
+			<p><a href=$thescript/image?objID=$objID&path_info=$path_info&graph_type=$graph_type&map=$file_name><img src=$maps_url/$file_name.gif border=0 ISMAP></a>
+			};
+		} else {
+			my $nd = &get_next_n_day((sprintf "%4d%02d%02d",$aa,$mm,$jj), 7);
+			my $pd = &get_prev_n_day((sprintf "%4d%02d%02d",$aa,$mm,$jj), 7);
+			printf "<hr>Ressource : <b>$nom_salle</b>, semaine du ".&rev_date($dd1,1)." :  <a href=$thescript/$path_info?objID=%s&graph_type=W&date1=%s>précédente</a> ",$objID,&rev_date($pd);
+			printf " | <a href=$thescript/$path_info?objID=%s&graph_type=W&date1=%s>suivante</a> ",$objID, &rev_date($nd);
+			printf " | <a href=$thescript/$path_info?objID=$objID&path_info=$path_info&graph_type=M&date1=01/%02d/%4d>le graphique du mois</a> ",$mm,$aa ;
+			print qq{ $hascnflcts<br>
+			$descr
+			<p><a href=$thescript/image?objID=$objID&path_info=$path_info&graph_type=$graph_type&map=$file_name><img src=$maps_url/$file_name.gif  border=0 ISMAP></a>};
+		}
 
-    my $path_info = $CONTENTS{path_info} ? $CONTENTS{path_info}  : $ENV{PATH_INFO};
-    $path_info =~ s#^/##;
-  	
-    my $descr = $CONTENTS{show_descr} ? $obj->{descr} : qq{<div style="width:80%; margin-left:20px; height:50px; overflow: scroll; border: 1px solid #aaaaaa;">$obj->{descr}</div>};
-  	
-	my $objects;
-	foreach my $obj_id (@objIDs) {
-		next unless $obj_id;
-		$objects .= qq{objID=$obj_id&};
-	}
-	
-	if ($graph_type eq 'M') {
-		my $prev_year = $aa;$prev_month = $mm - 1; if ($prev_month < 1)  {$prev_month = 12; $prev_year = $aa -1;}
-		my $next_year = $aa;$next_month = $mm + 1; if ($next_month > 12) {$next_month = 1;  $next_year = $aa +1;}
-		my $pdate	 = sprintf "01/%02d/%4d", $prev_month, $prev_year;
-		my $ndate	 = sprintf "01/%02d/%4d", $next_month, $next_year;
-		print qq{<hr>Ressource : <b>$nom_salle</b>, $mois_noms[$mm] $aa  <a href=$thescript/$path_info?${objects}date1=$pdate&graph_type=M&show_descr=$CONTENTS{show_descr}>précédent</a> | <a href=$thescript/$path_info?${objects}date1=$ndate&graph_type=M&show_descr=$CONTENTS{show_descr}>suivant</a>  $hascnflcts<br>
-		$descr
-		
-		<p><a href=$thescript/image?objID=$objID&path_info=$path_info&graph_type=$graph_type&map=$file_name><img src=$maps_url/$file_name.gif border=0 ISMAP></a>
-		};
-	}
-	
-	if ($graph_type eq 'W') {
-		my $nd = &get_next_n_day((sprintf "%4d%02d%02d",$aa,$mm,$jj), 7);
-		my $pd = &get_prev_n_day((sprintf "%4d%02d%02d",$aa,$mm,$jj), 7);
-		printf "<hr>Ressource : <b>$nom_salle</b>, semaine du ".&rev_date($dd1,1)." :  <a href=$thescript/$path_info?objID=%s&graph_type=W&date1=%s>précédente</a> ",$objID,&rev_date($pd);
-		printf " | <a href=$thescript/$path_info?objID=%s&graph_type=W&date1=%s>suivante</a> ",$objID, &rev_date($nd);
-		printf " | <a href=$thescript/$path_info?objID=$objID&path_info=$path_info&graph_type=M&date1=01/%02d/%4d>le graphique du mois</a> ",$mm,$aa ;
-		print qq{ $hascnflcts<br>
-		$descr
-		
-		<p><a href=$thescript/image?objID=$objID&path_info=$path_info&graph_type=$graph_type&map=$file_name><img src=$maps_url/$file_name.gif  border=0 ISMAP></a>};
-	}
+    listRes ($dd1, $dd2, $objID);
 
   }
  
@@ -2002,85 +1998,81 @@ sub periode {
 #__________________
 sub draw_salle {
   my ($objID, $date1, $date2, $graph_type) = @_;
-
   my $ox  = $offsetx;
   my $oy  = $offsety+$smallh+5;
   my $x1  = $ox + $name_col;
   my $x2  = $gwidth;
   my $y2  = $oy;
   my $y1;
-  
   my $nom_salle = $userObjects{$objID}->{objdata}->{nom};
   if (length($salle) > $nom_salle_len) {
-	draw_text ($ox+2, $oy+12, $textcol, substr($nom_salle,0,$nom_salle_len));
-	draw_text ($ox+2, $oy+14+$smallh, $textcol, substr($nom_salle,$nom_salle_len,length($nom_salle)));
+		draw_text ($ox+2, $oy+12, $textcol, substr($nom_salle,0,$nom_salle_len));
+		draw_text ($ox+2, $oy+14+$smallh, $textcol, substr($nom_salle,$nom_salle_len,length($nom_salle)));
   } else {
-	draw_text ($ox+2, $oy+12, $textcol, $nom_salle);
+		draw_text ($ox+2, $oy+12, $textcol, $nom_salle);
   }
   draw_line ($ox, $oy, $x2, $y2, 'black');
   draw_line ($ox, $oy-1, $x2, $y2-1, 'black');
-
   for (my $i = 0; $i < $res_hours; $i++) {
     $y1 = $oy + $i*($smallh+5);
-	draw_text ($x1, $y1+12, 'red', $i+$DEBUT);
-	draw_line ($x1+$smallh+7, $y1, $x2, $y1, 'black');
+		draw_text ($x1, $y1+12, 'red', $i+$DEBUT);
+		draw_line ($x1+$smallh+7, $y1, $x2, $y1, 'black');
   }
   printf MAP "D\t%d\t%d\t%d\t%d\tdispo\n", $ox+$name_col+14, $oy, $x2, $y1+10;
   $color_index = 0;
   foreach my $res (getObjRes ($objID, $date1, $date2)) {
-	my	$res_id	= $res->{res_id};
-	my	$nom	= $res->{nom};
-	my	$obj_id	= $res->{obj_id};
-	my	$sciper	= $res->{sciper};
-	my	$jour	= $res->{jour};
-	my	$date	= $res->{date};
-	$date =~ s/\-//g;
-	my	$hdeb	= $res->{hdeb};
-	my	$hfin	= $res->{hfin};
-
+		my	$res_id	= $res->{res_id};
+		my	$nom	= $res->{nom};
+		my	$obj_id	= $res->{obj_id};
+		my	$sciper	= $res->{sciper};
+		my	$jour	= $res->{jour};
+		my	$date	= $res->{date};
+		$date =~ s/\-//g;
+		my	$hdeb	= $res->{hdeb};
+		my	$hfin	= $res->{hfin};
     if ($date ge $date1 and $date le $date2) {
 		$date = &get_day_name($date) if ($graph_type eq 'W')  ;
     	draw_date ($date, $ox, $oy, $hdeb, $hfin, $tuser, $nom, $graph_type, $res_id);
+			$CONTENTS{crt_nom}  = $nom;
+			$CONTENTS{crt_date} = $date;
     }
    }
-
 }
  
 #__________________
 sub draw_date {
   my ($date, $ox, $oy, $debut, $fin, $usrname, $nom, $graph_type, $rec) = @_;
-
   my $vct = $smallh+5;
   my ($x1, $x2, $y1, $y2);
-
   if ($graph_type eq 'M' ) {
-	$x1 = $offsetx+$name_col+ substr($date,6,2) * ($smallw+$intercar)+2;
-	$x2 = $x1 + $smallw+$intercar-3;
+		$x1 = $offsetx+$name_col+ substr($date,6,2) * ($smallw+$intercar)+2;
+		$x2 = $x1 + $smallw+$intercar-3;
   } 
   if ($graph_type eq 'W' ) {
-	my $dayindex = &get_day_index($date);
-	$dayindex = 7 unless $dayindex;
-	$x1 = $offsetx+$name_col+ ($dayindex-1) * $week_day_width + 16;
-	$x2 = $x1 + $week_day_width - 2;
+		my $dayindex = &get_day_index($date);
+		$dayindex = 7 unless $dayindex;
+		$x1 = $offsetx+$name_col+ ($dayindex-1) * $week_day_width + 16;
+		$x2 = $x1 + $week_day_width - 2;
   }
   my $fin = (&conv_time($fin) > $FIN) ? $FIN : $fin;
   $y1 = $oy + int((&conv_time($debut)-$DEBUT)*$vct)+2;
   $y2 = $oy + int((&conv_time($fin)-$DEBUT)*$vct)-2;
-
   my $bg_color_sect = $colors_sect{$SECT{$usrname}};
   my $fg_color_sect = $fgcolors_sect{$SECT{$usrname}};
   unless ($bg_color_sect) {
 	  $bg_color_sect = $color_list[0][0];
 	  $fg_color_sect = $color_list[0][1];
   }
-
+#   if ($CONTENTS{crt_date} eq $date && $CONTENTS{crt_nom} ne $nom) {
+#   	$color_index++;
+# 	  $bg_color_sect = $color_list[$color_index][0];
+# 	  $fg_color_sect = $color_list[$color_index][1];
+#   }
   draw_rect($x1-1,$y1-1,$x2,$y2+1, 1, $bg_color_sect);
-
   if ($graph_type ne 'M') {
-	my $tmp_nom = substr($nom,0,11);
-	draw_text (int($x1+($x2-$x1-$smallw*length($tmp_nom))/2-$intercar)+3,$y1+12, $fg_color_sect, $tmp_nom);
+		my $tmp_nom = substr($nom,0,11);
+		draw_text (int($x1+($x2-$x1-$smallw*length($tmp_nom))/2-$intercar)+3,$y1+12, $fg_color_sect, $tmp_nom);
   }
-  
   printf MAP "R\t%s\t%s\t%s\t%s\t%s\n", $x1, $y1, $x2, $y2, $rec;
 }
 #__________________
@@ -2095,57 +2087,49 @@ sub conv_time {
 #_________
 sub draw_month {
   my ($ghight, $month, $year) = @_;
-
-    my $y1 = $offsety;
-
+  my $y1 = $offsety;
 	draw_text ($offsetx, $offsety, $textcol, '  Semaine    ->');
-    for (my $i = 1; $i <= $mois[$month]; $i++) {
-      my $x1 = $offsetx+$name_col+$i*($smallw+$intercar);
-      my $x2 = $offsetx+$name_col+$i*($smallw+$intercar);
-
-      my $tmp_day = sprintf "%4d%02d%02d", $year, $month, $i;
-      $tmp_day =~ s/ /0/g;
-
-      my $day_name = &get_day_name($tmp_day);
-      if ($day_name eq 'samedi' || $day_name eq 'dimanche') {
-		draw_rect ($x1,$y1+1, $x2+$smallw+$intercar-1, $ghight-1,'', 'lightgrey');
-      } elsif ($jferies{$tmp_day}) {
-		if ($tmp_day eq "${year}1224" or $tmp_day eq "${year}1231") {
-			draw_rect (($x1+$offsetx/2+3),$y1+1, $x2+$smallw+$intercar-1, $ghight-1,'', 'lavender');
-		} else {
-			draw_rect ($x1,$y1+1, $x2+$smallw+$intercar-1, $ghight-1,'', 'lavender');
-		}
-      } else {
-		draw_rect ($x1,$offsety-12, $x1+$smallw+$intercar-1,$offsety,'','lightgrey');
-      }
-      
-      if ($day_name eq 'lundi' || $i == '1') {
-		$nb = &get_week_nb(sprintf "%4d%02d%02d",$year,$month,$i);
-		draw_text ($x1+2,$offsety, $textcol,$nb);
-		($date1,$date2) = split (/\t/, &get_start_end_week(sprintf "%4d%02d%02d",$year,$month,$i));
-		$wx = $x1;
-		$wy = $offsety-12;
-      }
-      if ($day_name eq 'vendredi'  || $i == $maxday) {
-		printf MAP "W\t%d\t%d\t%d\t%d\t%s\n", $wx, $wy, $x1+($smallw+$intercar),$offsety, $date1;	
-      }
+  for (my $i = 1; $i <= $mois[$month]; $i++) {
+		my $x1 = $offsetx+$name_col+$i*($smallw+$intercar);
+		my $x2 = $offsetx+$name_col+$i*($smallw+$intercar);
+		my $tmp_day = sprintf "%4d%02d%02d", $year, $month, $i;
+		$tmp_day =~ s/ /0/g;
+		my $day_name = &get_day_name($tmp_day);
+		if ($day_name eq 'samedi' || $day_name eq 'dimanche') {
+			draw_rect ($x1,$y1+1, $x2+$smallw+$intercar-1, $ghight-1,'', 'lightgrey');
+    } elsif ($jferies{$tmp_day}) {
+			if ($tmp_day eq "${year}1224" or $tmp_day eq "${year}1231") {
+				draw_rect (($x1+$offsetx/2+3),$y1+1, $x2+$smallw+$intercar-1, $ghight-1,'', 'lavender');
+			} else {
+				draw_rect ($x1,$y1+1, $x2+$smallw+$intercar-1, $ghight-1,'', 'lavender');
+			}
+    } else {
+			draw_rect ($x1,$offsety-12, $x1+$smallw+$intercar-1,$offsety,'','lightgrey');
+    }  
+    if ($day_name eq 'lundi' || $i == '1') {
+			$nb = &get_week_nb(sprintf "%4d%02d%02d",$year,$month,$i);
+			draw_text ($x1+2,$offsety, $textcol,$nb);
+			($date1,$date2) = split (/\t/, &get_start_end_week(sprintf "%4d%02d%02d",$year,$month,$i));
+			$wx = $x1;
+			$wy = $offsety-12;
+    }
+    if ($day_name eq 'vendredi'  || $i == $maxday) {
+			printf MAP "W\t%d\t%d\t%d\t%d\t%s\n", $wx, $wy, $x1+($smallw+$intercar),$offsety, $date1;	
+    }
 	  draw_line ($x1, $y1+1, $x2, $ghight, 'black');
 	  draw_text ($x1+2,$y1+13, $textcol,$i);
 	  draw_text ($x1+2,$ghight+12, $textcol,$i);
-
-      if ($tmp_day eq $crt_date) {
-		 $img->moveTo($x1,$offsety);
-		 $img->fgcolor('red');
-		 $img->setThickness(2);
-		 $img->lineTo($x1,$offsety+13*16);
-		 $img->lineTo($x1+$smallw+$intercar-1,$offsety+13*16);
-		 $img->lineTo($x1+$smallw+$intercar-1,$offsety);
-		 $img->lineTo($x1,$offsety);
-		 $img->setThickness(1);
+    if ($tmp_day eq $crt_date) {
+			$img->moveTo($x1,$offsety);
+			$img->fgcolor('red');
+			$img->setThickness(2);
+			$img->lineTo($x1,$offsety+13*16);
+			$img->lineTo($x1+$smallw+$intercar-1,$offsety+13*16);
+			$img->lineTo($x1+$smallw+$intercar-1,$offsety);
+			$img->lineTo($x1,$offsety);
+			$img->setThickness(1);
 	  }      
-
-    }
-
+  }
 }
  
 #_________
@@ -2190,15 +2174,15 @@ sub draw_week {
 #__________________
 sub image {
   
-  my $objID 		 = $CONTENTS{objID};
-  my $graph_type 	 = $CONTENTS{graph_type};
+  my $objID 		 		 = $CONTENTS{objID};
+  my $graph_type 	 	 = $CONTENTS{graph_type};
   my ($map, $coords) = split(/\?/, $CONTENTS{map});
   
   return unless $objID and $graph_type and $map;
 
   my ($mapfile,$out, $an, $m, $d);
 
-  my $objDir 	 = $mapsdir.$objID;
+  my $objDir 	 	 = $mapsdir.$objID;
   my $nom_salle  = $userObjects{$objID}->{objdata}->{nom};
   my $mapfile    = qq{$objDir/${map}.map};
   
@@ -2236,17 +2220,43 @@ sub image {
 
 #------------------ semaine  ---------------------
   if (($out = &where_is ($x, $y, @map_weeks))  ne '') {
-  
-	  main_graph ($objID, substr($out,6,2), substr($out,4,2), substr($out,0,4), 'W');
-	  
+  	$out = $out->[0];
+    main_graph ($objID, substr($out,6,2), substr($out,4,2), substr($out,0,4), 'W');
 	  &footpage;
   }
 #------------------ afficher reservation  ---------------------
   if (($out = &where_is ($x, $y, @map_res))    ne '') {
 	  &res_header;
-	  $CONTENTS{res_id} = $out;
-	  &disp_res ();
+	  if (scalar @$out == 1) {
+			$CONTENTS{res_id} = $out->[0];
+			&disp_res ();
+		} else {
+			print qq{<h3>Réservations multiples $userObjects{$objID}->{objdata}->{nom}</h3>};
 
+			my $res_ids = join ',', @$out;
+			my $sql = qq{select * from res where id in ($res_ids) };
+			my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
+			$sth->execute () or die "database fatal error : execute : $DBI::errstr";
+			print qq{
+			<br>
+			<table style="width:50%;">
+				<tr style="font-weight: bold;">
+				<th>Raison
+				<th>Détails
+				<th>Début
+				<th>Fin
+			};
+			while (my $data = $sth->fetchrow_hashref) {
+				print qq{<tr>
+					<td><a href="$thescript/disp_res?res_id=$data->{id}">$data->{nom}</a>
+					<td>$data->{descr}
+					<td>$data->{hdeb}
+					<td>$data->{hfin}
+					};
+			}
+
+			print qq{</table>};
+		}
 	  &footpage;
   } 
 #------------------ nouvelle reservation  ---------------------
@@ -2276,12 +2286,12 @@ sub read_map {
    open (MAP, "$map_name") or	erreur ("ouverture fichier map \"$map_name\"\n<p>faites <b>Back</b> et <b>Reload</b>", 1);
    
    while (<MAP>) {
-	chop;
-	my ($sym, $x1, $y1, $x2, $y2, $descr) = split (/\t/, $_);
-	my $tmp_string = sprintf "%s\t%d\t%d\t%d\t%d",$descr, $x1, $y1, $x2, $y2;
-	if ($sym eq 'W') { push (@map_weeks , $tmp_string);}
-	if ($sym eq 'R') { push (@map_res   , $tmp_string);}
-	if ($sym eq 'D') { push (@map_disp  , $tmp_string);}
+		chop;
+		my ($sym, $x1, $y1, $x2, $y2, $descr) = split (/\t/, $_);
+		my $tmp_string = sprintf "%s\t%d\t%d\t%d\t%d",$descr, $x1, $y1, $x2, $y2;
+		if ($sym eq 'W') { push (@map_weeks , $tmp_string);}
+		if ($sym eq 'R') { push (@map_res   , $tmp_string);}
+		if ($sym eq 'D') { push (@map_disp  , $tmp_string);}
    }
    close MAP;
 }
@@ -2290,13 +2300,14 @@ sub read_map {
 sub where_is {
   my ($x, $y, @table)  = @_;
  
+ 	my $ret_descr;
   for my $i (@table)    {
 	 my ($descr, $x1, $y1, $x2, $y2) = split (/\t/, $i);
 	 if ($x >= $x1 && $x <= $x2 && $y >= $y1 && $y <= $y2 ) {
-		return ($descr);
+	 	push @$ret_descr, $descr;
 	 }
   }
-  return ('');
+  return $ret_descr;
 }
 
 #__________________
