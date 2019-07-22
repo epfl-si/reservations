@@ -10,8 +10,6 @@
 my $delete	= 1;
 my $mapsdir	=  '/var/www/vhosts/reservations.epfl.ch/htdocs/.maps';
 
-warn "--> purge-maps \n";
-
 print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
 
 opendir(my $dh, $mapsdir) || die "Can't opendir $mapsdir: $!";

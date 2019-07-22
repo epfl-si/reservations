@@ -62,7 +62,7 @@ sub execute {
 
   if ($command =~ /^listRes$/) {	#	- les reservations du jour
 		my $datedeb = $args->{datedeb} ? $args->{datedeb} : $crt_date;
-		my $datefin   = $args->{datefin}   ? $args->{datefin} : $crt_date;
+		my $datefin = $args->{datefin}   ? $args->{datefin} : $crt_date;
 		my @res 	  = getObjRes ($args->{objID}, $datedeb, $datefin);
 		Cadi::WSUtils::json_response ( { result => \@res, } );
 		exit;
