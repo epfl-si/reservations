@@ -10,14 +10,43 @@ $URLabs			= "${ABS_HOME}/cgi-bin/abs";
 $URLres			= "${RES_HOME}/cgi-bin/res";
 #==============================================================
 
+use Crypt::RC4;
+use Crypt::GCM;
+use Crypt::Rijndael;
 use Cadi::CadiDB;
+use Cadi::Accreds;
 
 # ----------- constantes communes -----------------
 $thescript  	= $ENV{'SCRIPT_NAME'};
 $querystring	= $ENV{'QUERY_STRING'};
 $pathinfo    	= $ENV{'PATH_INFO'};
 
-$superuser		= 'cionca';
+#	- get access params
+require '/var/www/vhosts/reservations.epfl.ch/private/etc/access_params';	
+
+#	ws token encryption
+$useTokenRC4 	= 0;
+
+$DATE  				= 'ponctuelle';
+$DAILY 				= 'quotidienne';
+$HEBDO 				= 'chaque';
+$FIRST 				= 'le 1er';
+$SEC   				= 'le 2ème';
+$TROIS 				= 'le 3ème';
+$QUATRE 			= 'le 4ème';
+$BIHEBDO 			= 'toutes les deux semaines';
+$TRIHEBDO 		= 'toutes les trois semaines';
+$LAST  				= 'le dernier';
+%periodics  	= (
+	$HEBDO,		'chaque', 
+	$FIRST,		'le 1er', 
+	$SEC,		'le 2ème', 
+	$TROIS,		'le 3ème', 
+	$QUATRE, 	'le 4ème',
+	$BIHEBDO, 	'toutes les deux semaines',
+	$TRIHEBDO, 	'toutes les trois semaines',
+	$LAST,		'le dernier', 
+	);
 
 @mois = (0,31,28,31,30,31,30,31,31,30,31,30,31);
 @noms_jours = (
@@ -44,8 +73,8 @@ $superuser		= 'cionca';
 	'Novembre',
 	'Décembre',
 	);
-@years = (2000..2012);
-$MAXDATE = '20200101';
+# @years = (2000..2012);
+# $MAXDATE = '20300101';
 
 # ----------- colors ---------------------------
 $lightgrey	= 'lightgrey';
@@ -62,6 +91,8 @@ $intercar 	= 10;
 
 use Net::LDAP;
 $ldap  = Net::LDAP->new('ldap.epfl.ch') or erreur ("new LDAP : $!");
+
+my $Accreds  = new Cadi::Accreds ();
 
 #_____________
 sub loadargs {
@@ -95,11 +126,45 @@ sub loadargs {
 }
 
 #_____________
+sub dbconnect {
+	my ($dbkey) = @_;
+	
+	my $dbconf_file = '/opt/dinfo/etc/dbs.conf';
+	die "people :: dbconnect : ERR OPEN $dbconf_file [$!]" unless (open (DBCONF, "$dbconf_file")) ;
+	my ($dbname, $dbhost, $dbuser, $dbpwd) ;
+	while (<DBCONF>) {
+		chomp;
+		next if $_ =~ /^#/;	# - comments
+		$_ =~ s/\t+/\t/g;
+		next unless $_;
+		my @items = split /\t/, $_;
+		next unless $items[0] eq $dbkey;
+		$dbname = $items[1];
+		$dbhost = $items[2];
+		$dbuser = $items[3];
+		$dbpwd = $items[4];
+		last;
+	}
+	close DBCONF;
+
+	die "dbconnect : ERR DB CONFIG : $dbname, $dbhost, $dbuser" unless ($dbname and $dbhost and $dbuser and $dbpwd) ;
+	my $dsndb    = qq{dbi:mysql:$dbname:$dbhost:3306}; 
+warn "--> dbconnect : $dsndb" if $verbose;
+
+	my $dbh = DBI->connect ($dsndb, $dbuser, $dbpwd);
+	$dbh->{'mysql_enable_utf8'} = 1;
+
+	die "dbconnect : ERR DBI CONNECT : $dbhost, $dbname, $dbuser" unless $dbh;
+	
+	return $dbh;
+}
+
+#_____________
 sub erreur {
   my ($messg) = @_;
 
   return unless $messg;
-warn "erreur :: $messg\n";
+warn "erreur [$CONTENTS{sciper}] :: $messg\n";
   &res_header if ($HEADER_DONE eq '');
   printf "<p><font color=\"red\"><b>Erreur</b></font> - %s</p>", $messg;
   &footpage;
@@ -370,7 +435,7 @@ sub alpha_sort {
 	return ($l1 cmp $l2);
 }
 #_____________
-sub pr_date_choice {
+sub pr_date_choice_OLD {
    my ($text, $name, $def) = @_;
    my (@days, $i);
    my ($d) = substr ($def, 8, 2);
@@ -544,57 +609,12 @@ warn "absres :: tools.pl : mailto :DEBUG=$DEBUG: dest=$dest, subj=$subj=";
   <p><b>Note </b> - adresse(s) invalide(s) ou inexistante(s) : $errmail<br>Veuillez effectuer les corrections sur votre fiche de remplacements ou vos données personnelles</p>
   } if $errmail;
 }
+
 #_____________
 sub check_empty {
   my ($var, $var_name) = @_;
 
   erreur ("champ <b>$var_name</b> vide") if ($var eq '');
-}
-#_____________
-sub read_res_user_data {
-	my ($query, $flag) = @_;
-
-	my $sql = qq{SELECT distinct accred.sciper,sciper.nom,sciper.prenom,bottin.telephone1,emails.addrlog
-		FROM accred left outer join sciper on accred.sciper = sciper.sciper
-		            left outer join bottin on accred.sciper = bottin.sciper
-		            left outer join emails on accred.sciper = emails.sciper
-		 };
-	if ($flag) {
-		$sql .= qq{
-		WHERE sciper.nom LIKE '%$query%'
-		 order by sciper.nom_acc
-		};
-	} else {
-		$sql .= qq{
-		WHERE accred.sciper = '$query'
-		 order by sciper.nom_acc
-		};
-	}
-
-	my $sth = $dbh->prepare($sql); 
-	$sth->execute; 
-
-	my @results;
-	my %crthash;
-	while ($myres = $sth->fetchrow_hashref()) {
-		if ($crthash{sciper} ne $myres->{sciper}) {
-			if ($crthash{sciper}) {
-				push (@results, "$crthash{sciper}\t$crthash{nom}\t$crthash{prenom}\t$crthash{telephone1}\t$crthash{addrlog}\t");
-				%crthash = ();
-			}
-			$crthash{sciper} 	= $myres->{sciper};
-			$crthash{nom} 		= $myres->{nom};
-			$crthash{prenom} 	= $myres->{prenom};
-			$crthash{telephone1}= $myres->{telephone1};
-			$crthash{addrlog} 	= $myres->{addrlog};
-		} else {
-			$crthash{telephone1}.= ','.$myres->{telephone1};
-		}
-	}
-	if ($crthash{sciper}) {
-				push (@results, "$crthash{sciper}\t$crthash{nom}\t$crthash{prenom}\t$crthash{telephone1}\t$crthash{addrlog}\t");
-	}
-	return (@results);
 }
 
 #_____________
@@ -626,12 +646,40 @@ sub get_obj_tokens {
 sub getObjIDFromToken {
 	my ($token) = @_;
 	return '' unless $token;
-warn "--> getObjIDFromToken : $token\n";
+	return getObjIDFromTokenRC4($token) if $useTokenRC4;
+	return getObjIDFromTokenGCM($token);
+}
+
+#------
+sub getObjIDFromTokenRC4 {
+	my ($token) = @_;
+	return '' unless $token;
+warn "--> getObjIDFromTokenRC4 : $token\n";
 
 	my $rc4  = Crypt::RC4->new ($rc4key);
 	my $rnd  = $rc4->RC4 (pack ("H*", substr ($token, 0, 12)));
 	   $rc4  = Crypt::RC4->new ($rnd);
 	return split /:/, $rc4->RC4 (pack ("H*", substr ($token, 12)));
+
+}
+#------
+sub getObjIDFromTokenGCM {
+	my ($token) = @_;
+	return '' unless $token;
+warn "--> getObjIDFromTokenGCM : token=$token\n";
+
+	my ($crypt_token, $iv, $tag) = split /:/, $token;
+  my $gcm = Crypt::GCM->new (
+       -key => pack ('H*', $aeskey),
+    -cipher => 'Crypt::Rijndael',
+  );
+	$gcm->set_iv(pack 'H*', $iv);
+  $gcm->aad('');
+  $gcm->tag(pack 'H*', $tag);
+
+  my $decrypttoken = $gcm->decrypt (pack 'H*', $crypt_token);
+warn "--> getObjIDFromTokenGCM : decrypttoken=$decrypttoken\n";
+  return split /:/, $decrypttoken;
 
 }
 
@@ -654,25 +702,30 @@ sub getObjRes {
 
   my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
   $sth->execute (($d1, $d2, $objID)) or die "database fatal error : execute : $DBI::errstr";
-warn "--> getObjRes : ($d1, $d2, $objID)\n";
   while (my $data = $sth->fetchrow_hashref) {
-	my $item = {
-		res_id	=> $data->{id},
-		nom		=> $data->{nom},
-		obj_id	=> $data->{obj_id},
-		sciper	=> $data->{sciper},
-		periodic=> $data->{periodic},
-		jour	=> $data->{jour},
-		date	=> $data->{date},
-		datedeb=> $data->{datedeb},
-		datefin	 => $data->{datefin},
-		hdeb	=> $data->{hdeb},
-		hfin	=> $data->{hfin},
-		unite	=> $data->{unite},
-		pool	=> $data->{pool},
-	};
-	push @rsrv, $item;
-warn "--> getObjRes : $data->{nom}, $data->{hdeb}, $data->{hfin}, redid=$data->{id}\n";
+
+		unless ($data->{unite}) {
+			my @accreds = sort {$a->{ordre} <=> $b->{ordre}} $Accreds->getAccreds ($data->{sciper});
+			$data->{unite} = $accreds[0]->{unite};
+		}
+
+		my $item = {
+			res_id	=> $data->{id},
+			nom			=> $data->{nom},
+			obj_id	=> $data->{obj_id},
+			sciper	=> $data->{sciper},
+			periodic=> $data->{periodic},
+			jour		=> $data->{jour},
+			date		=> $data->{date},
+			datedeb	=> $data->{datedeb},
+			datefin	=> $data->{datefin},
+			hdeb		=> $data->{hdeb},
+			hfin		=> $data->{hfin},
+			unite		=> $data->{unite},
+			pool		=> $data->{pool},
+		};
+		push @rsrv, $item;
+#warn "--> getObjRes : $data->{unite}, $data->{nom}, $data->{hdeb}, $data->{hfin}, redid=$data->{id}\n";
   }
   $sth->finish;
   
@@ -900,19 +953,20 @@ sub getUserData {
   my $sth = $db_dinfo->query($sql);
   while (my ($sciper, $nom_acc, $prenom_acc, $nom_usuel, $prenom_usuel, $addrlog, $ordre, $id_unite, $sigle) = $sth->fetchrow) {
   	next unless $sciper;
-	my $nom    = $nom_usuel    ? $nom_usuel    : $nom_acc ;
-	my $prenom = $prenom_usuel ? $prenom_usuel : $prenom_acc ;
+		my $nom    = $nom_usuel    ? $nom_usuel    : $nom_acc ;
+		my $prenom = $prenom_usuel ? $prenom_usuel : $prenom_acc ;
 
-	$allUnitsUsers{$sigle}->{$sciper} = 1;
-	$allUsersUnits{$sciper}->{$sigle} = 1;
-	$dinfo{$sciper}	= {
-		nom			=> $nom,
-  		prenom 		=> $prenom,
-  		email 		=> $addrlog,
-	} unless defined $dinfo{$sciper};
-	if (defined $dinfo{$sciper}) {
-		$dinfo{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
-	}
+#		$allUnitsUsers{$sigle}->{$sciper} = 1;
+		$allUnitsUsers{$id_unite}->{$sciper} = 1;
+#		$allUsersUnits{$sciper}->{$sigle} = 1;
+		$dinfo{$sciper}	= {
+			nom			=> $nom,
+			prenom 	=> $prenom,
+			email 	=> $addrlog,
+		} unless defined $dinfo{$sciper};
+		if (defined $dinfo{$sciper}) {
+			$dinfo{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
+		}
   }
 
 }
@@ -933,8 +987,8 @@ sub checkJSExploits {
 	my ($args) = @_;
 
 	# - check JS CSS vulnerabilty
-	my $exploittxt = $args->{lang} eq 'en' ? qq{content refused, potential malware or illegal keywords found : } : 
-		qq{contenu refus&eacute;, contient un mot cl&eacute; potentiellement malveillant ou refus&eacute; : };
+	my $exploittxt = $args->{lang} eq 'en' ? qq{content refused, potential malware or illegal keywords found} : 
+		qq{contenu refus&eacute;, contient un mot cl&eacute; potentiellement malveillant ou refus&eacute;};
 	my @exploits1 = ('FRAME','OBJECT','META','APPLET','LINK','IFRAME');
 	# - check JS events vulnerabilty
 	my @exploits2 = (

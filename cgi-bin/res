@@ -28,14 +28,16 @@ use Tequila::Client;
 require 'res-tools.pl';
 
 #---------------------------------------------------------
-my $version	   = 'Sept 2018';
+my $version	   = 'Feb 2019';
 #---------------------------------------------------------
+
+my $WEB2018		= 1;
 
 $URLres				= "${RES_HOME}/cgi-bin/res";
 $URLplan			= "https://plan.epfl.ch/";
 $support			= '1234@epfl.ch';
 $generic_mail	= 'noreply@epfl.ch';
-$TITLE      	= 'Gestion des réservations ';
+$TITLE      	= 'Réservations en ligne ';
 my $mapsdir		=  qq{${abs_path}htdocs/.maps/};
 
 @color_list = (
@@ -67,7 +69,7 @@ $FIN   					= '22';	 # ---- heure fin reservations
 $res_hours  		= '15';  # ---- plage d'affichage des reservations 
 $week_day_width = 75;
 $nom_salle_len	= 19;
-@obj_acces			= ('public','restreint');
+@obj_acces			= ('public','restreint','indisponible');
 
 #-------------------
 $DEBUG = -f '/opt/dinfo/etc/MASTER' ? 0 : 1;
@@ -80,11 +82,13 @@ if ($DEBUG) {
 
 my $NOTIFYUSER 	= '';
 
-$login_as 			= '104689';
+ $login_as = '254095';
+ $login_as = '105404';
+ $login_as = '104689';
+	
+%CONTENTS  			= &loadargs ();
 
-%CONTENTS  = &loadargs ();
-
-use vars qw( %allObjects %allUsersUnits %allUnitsUsers @allunits %userObjects %objUsers $res %dinfo $dbh @salles  $image_dir $logfile $gwidth $ghight %Admins @commonUsers @commonUnits);
+use vars qw( %allObjects %allUnitsUsers @allunits %userObjects %objUsers $res %dinfo $dbh @salles  $image_dir $logfile $gwidth $ghight %Admins @commonUsers @commonUnits);
 
  my $superusers = '104782,107490,105640';	#	- ic, nr, cl
 
@@ -175,26 +179,26 @@ sub dispatch {
 		&disp_res ();
 		&footpage ();
 	}
-	&add_res   	   if $pathinfo =~ /^\/add_res/;
-	&chp_done	   if $pathinfo =~ /^\/chp_done/;
-	&cons_obj  	   if $pathinfo =~ /^\/cons_obj/;
-	&cons_res  	   if $pathinfo =~ /^\/cons_res/;
-	&done_obj 	   if $pathinfo =~ /^\/done_obj/  	;
-	&done_res 	   if $pathinfo =~ /^\/done_res/  	;
-	&extract 	   if $pathinfo =~ /^\/extract/  	;
-	&flag_mail	   if $pathinfo =~ /^\/flag_mail/;
-	&ges_user	   if $pathinfo =~ /^\/ges_user/;
-	&gestion 	   if $pathinfo =~ /^\/gestion/;
-	&graph 		   if $pathinfo =~ /^\/graph/;
-	&help  		   if $pathinfo =~ /^\/hel/;
-	&ical	 	   if $pathinfo =~ /^\/ical/;
-	&image	 	   if $pathinfo =~ /^\/image/;
+	&add_res   	  if $pathinfo =~ /^\/add_res/;
+	&chp_done	   	if $pathinfo =~ /^\/chp_done/;
+	&cons_obj  	  if $pathinfo =~ /^\/cons_obj/;
+	&cons_res  	  if $pathinfo =~ /^\/cons_res/;
+	&done_obj 	  if $pathinfo =~ /^\/done_obj/  	;
+	&done_res 	  if $pathinfo =~ /^\/done_res/  	;
+	&extract 	   	if $pathinfo =~ /^\/extract/  	;
+	&flag_mail	  if $pathinfo =~ /^\/flag_mail/;
+	&ges_user	   	if $pathinfo =~ /^\/ges_user/;
+	&gestion 	   	if $pathinfo =~ /^\/gestion/;
+	&graph 		  	if $pathinfo =~ /^\/graph/;
+	&help  		   	if $pathinfo =~ /^\/hel/;
+	&ical	 	   		if $pathinfo =~ /^\/ical/;
+	&image	 	   	if $pathinfo =~ /^\/image/;
 	&import_users  if $pathinfo =~ /^\/import_users/;
 	&listconflicts if $pathinfo =~ /^\/listconflicts/;
 	&listcontacts  if $pathinfo =~ /^\/listcontacts/;
 	&listobj	   if $pathinfo =~ /^\/listobj/	;
 	&listres	   if $pathinfo =~ /^\/listres/	;
-	&logs		   if $pathinfo =~ /^\/logs/	;
+	&logs		   	 if $pathinfo =~ /^\/logs/	;
 	&maj_obj 	   if $pathinfo =~ /^\/maj_obj/	;
 	&mod_res 	   if $pathinfo =~ /^\/mod_res/;
 	&news  		   if $pathinfo =~ /^\/news/;
@@ -204,6 +208,8 @@ sub dispatch {
 
 	&pool_dispo	   if $pathinfo =~ /^\/pool_dispo/;
 	&maj_token	   if $pathinfo =~ /^\/maj_token/;
+
+	&getUserAccreds	 if $pathinfo =~ /^\/getUserAccreds/;
 
 	&main ();
 
@@ -352,12 +358,14 @@ sub list_res {
 #_________
 sub auth {
 
+	return if $pathinfo =~ /^\/getUserAccreds/;
+
   unless ($tequila) {
     $tequila = new Tequila::Client (
 	  service    => 'Réservations',
 	  request    => [ 'name','firstname','uniqueid','where' ],
 	  identities => 'any',
-	  urlaccess  => "https://$ENV{SERVER_NAME}/cgi-bin/res?$ENV{QUERY_STRING}",
+	  urlaccess  => "https://$ENV{SERVER_NAME}$ENV{REQUEST_URI}?$ENV{QUERY_STRING}",
     );
     $tequila->init ();
   } 
@@ -370,7 +378,8 @@ sub auth {
   }
 
   @allunits = getAccreds ($CONTENTS{sciper});
-
+use Data::Dumper;
+warn "--> auth : allunits\n".Dumper(@allunits) if $CONTENTS{sciper} eq '129136';
 }
 
 #______________
@@ -381,7 +390,7 @@ sub getAllObjects {
 
   @commonUnits = @allunits;
 
-  my $sql = qq{select * from users left outer join obj on obj.id=users.obj_id  };
+  my $sql = qq{select * from users left join obj on obj.id=users.obj_id  };
   my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
   $sth->execute () or die "database fatal error : execute : $DBI::errstr";
 
@@ -414,8 +423,24 @@ sub getObjects {
   my $sql = qq{select * from obj };
   my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
   $sth->execute () or die "database fatal error : execute : $DBI::errstr";
-  while (my ($id, $nom, $descr, $disp, $visible, $datedeb, $datefin, $plan, $office, $maj, $maj_by, $unites, $pool, $max_pool) = $sth->fetchrow) {
-	$allObjects{$id}->{objdata} 	= { id => $id, nom => $nom, descr => $descr, disp => $disp, visible => $visible, datedeb => $datedeb, datefin => $datefin, plan => $plan, office=> $office, maj => $maj, maj_by => $maj_by, unites => $unites, pool => $pool,  max_pool => $max_pool,};
+  while (my ($id, $nom, $descr, $disp, $visible, $datedeb, $datefin, $plan, $office, $maj, $maj_by, $unites, $pool, $max_pool, $hide) = $sth->fetchrow) {
+	$allObjects{$id}->{objdata} 	= { 
+		id 			=> $id, 
+		nom 		=> $nom, 
+		descr 	=> $descr, 
+		disp 		=> $disp, 
+		visible => $visible, 
+		datedeb => $datedeb, 
+		datefin => $datefin, 
+		plan 		=> $plan, 
+		office	=> $office, 
+		maj 		=> $maj, 
+		maj_by 	=> $maj_by, 
+		unites 	=> $unites, 
+		pool 		=> $pool,  
+		max_pool=> $max_pool, 
+		hide		=> $hide, 
+	};
 	
 	if ($scipertodo and $unites) {
 		my %units = map { $_ => 1 } split /,/, $unites;
@@ -429,15 +454,28 @@ sub getObjects {
 		map { $commonUnits->{$_} = 1 } split (/,/, $unites) if $commonunit;
 	}
   }
-
-  my $sql = qq{select * from users left outer join obj on obj.id=users.obj_id };
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
+  my $sql = qq{select * from users left join obj on obj.id=users.obj_id };
+  my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
   $sth->execute () or die "database fatal error : execute : $DBI::errstr";
-  while (my ($sciper, $obj_id, $droit, $mail, $id, $nom, $descr, $disp, $visible, $datedeb, $datefin, $plan, $office, $maj, $maj_by, $unites, $pool, $max_pool) = $sth->fetchrow) {
+  while (my ($sciper, $obj_id, $droit, $mail, $id, $nom, $descr, $disp, $visible, $datedeb, $datefin, $plan, $office, $maj, $maj_by, $unites, $pool, $max_pool, $hide) = $sth->fetchrow) {
 
 	$allObjects{$obj_id}->{usrdata}->{$sciper} =  { droit  => $droit,	mail   => $mail, };
 	$allObjects{$id}->{objdata} = {
-		id => $id, nom => $nom, pool => $pool, max_pool => $max_pool, descr => $descr, disp => $disp, visible => $visible, datedeb => $datedeb, datefin => $datefin, plan => $plan, office=> $office, maj => $maj, maj_by => $maj_by, unites => $unites
+		id 			=> $id, 
+		nom 		=> $nom, 
+		pool 		=> $pool, 
+		max_pool=> $max_pool, 
+		descr 	=> $descr, 
+		disp 		=> $disp, 
+		visible => $visible, 
+		datedeb => $datedeb, 
+		datefin => $datefin, 
+		plan 		=> $plan, 
+		office	=> $office, 
+		maj 		=> $maj, 
+		maj_by	=> $maj_by, 
+		unites	=> $unites, 
+		hide		=> $hide, 
 	} unless defined $allObjects{$id}->{objdata};
 
 	$allObjects{$obj_id}->{usrdata}->{$sciper}->{reg} = 1;
@@ -450,11 +488,9 @@ sub getObjects {
 	$Admins{$sciper}->{$id} = 1 if $droit;
 
   }
-
   @commonUsers 	 = sort keys %$commonUsers;
   @commonUnits 	 = sort keys %$commonUnits;
   @commonObjects = sort keys %$commonObjects;
-
 }
 
 #______________
@@ -465,8 +501,9 @@ sub getObjUsers {
   my @scipers = keys %{$allObjects{$objID}->{usrdata}};
 
   if ($allObjects{$objID}->{objdata}->{unites}) {	# implicit access
-  	foreach my $unit (split(/,/, $allObjects{$objID}->{objdata}->{unites})) {
-  		push @scipers, keys %{$allUnitsUsers{$unit}};
+  	foreach my $sigle (split(/,/, $allObjects{$objID}->{objdata}->{unites})) {
+  		next unless $sigle;
+  		push @scipers, keys %{$allUnitsUsersBySigle{$sigle}};
   	}
   }
 
@@ -526,7 +563,7 @@ sub resAccessAllowed {
   return 1 if $Admins{$CONTENTS{sciper}}->{$obj_id};	# - admin
 
 #  if ($userObjects{$obj_id}->{objdata}->{disp} eq 'd' or $userObjects{$obj_id}->{objdata}->{disp} eq 'r') {
-	if ($userObjects{$obj_id}->{objdata}->{datedeb} and $userObjects{$obj_id}->{objdata}->{datedeb}  ne '00000000') {	#	- indisp présente
+	if ($userObjects{$obj_id}->{objdata}->{datedeb} and $userObjects{$obj_id}->{objdata}->{datedeb}  ne '0000-00-00') {	#	- indisp présente
 		return 0 if $res->{datedeb} ge $userObjects{$obj_id}->{objdata}->{datedeb} and $res->{datedeb} le $userObjects{$obj_id}->{objdata}->{datefin};
 		return 0 if $res->{datefin} ge $userObjects{$obj_id}->{objdata}->{datedeb} and $res->{datefin} le $userObjects{$obj_id}->{objdata}->{datefin};
 		return 0 if $res->{datedeb} le $userObjects{$obj_id}->{objdata}->{datedeb} and $res->{datefin} ge $userObjects{$obj_id}->{objdata}->{datefin};
@@ -559,23 +596,35 @@ sub objAccessAllowed {
   		return 1 if $Admins{$CONTENTS{sciper}}->{$obj_id}
   	}
   }
+
+warn "   0 objAccessAllowed ACC_TYPE=$CONTENTS{ACC_TYPE} : $objID, $userObjects{$objID}->{objdata}->{nom}\n" if $CONTENTS{sciper} eq '129136';
   return 1 if $Admins{$CONTENTS{sciper}}->{$objID};		# - admin
+warn "   1 objAccessAllowed : $objID, $userObjects{$objID}->{objdata}->{nom}\n" if $CONTENTS{sciper} eq '129136';
+
+	if ($allObjects{$objID}->{objdata}->{hide}) {
+  	return 1 if exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}} and $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}}->{reg};
+		return 0;	
+	}
+warn "   2 objAccessAllowed : $objID, $userObjects{$objID}->{objdata}->{nom}\n" if $CONTENTS{sciper} eq '129136';
 
   if ($CONTENTS{ACC_TYPE} eq 'R') {		#	- reservation
   	if ($allObjects{$objID}->{objdata}->{disp} eq 'r') {
+warn "   3 objAccessAllowed : $objID, $userObjects{$objID}->{objdata}->{nom}\n" if $CONTENTS{sciper} eq '129136';
+
   		return 1 if exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}} and $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}}->{reg};
-	} elsif ($allObjects{$objID}->{objdata}->{disp} eq 'd') {
-  		return 1 if exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}};
-	} elsif ($allObjects{$objID}->{objdata}->{datedeb} and $allObjects{$objID}->{objdata}->{datedeb}  ne '00000000') {
+		} elsif ($allObjects{$objID}->{objdata}->{disp} eq 'd') {
+				return 1 if exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}};
+		} elsif ($allObjects{$objID}->{objdata}->{datedeb} and $allObjects{$objID}->{objdata}->{datedeb}  ne '0000-00-00') {
   		if ($allObjects{$objID}->{objdata}->{datedeb} le $crt_date and $crt_date le $allObjects{$objID}->{objdata}->{datefin}) {
 	  		return 1 if exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}};
   		}
-		return 0;
-	}
+			return 0;
+		}
   } else {		#	- consultation
-	return 1 unless $allObjects{$objID}->{objdata}->{visible} eq 'r';
-	return 1 if exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}};
+		return 1 unless $allObjects{$objID}->{objdata}->{visible} eq 'r';
+		return 1 if exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}};
   }
+warn "   KO objAccessAllowed : $objID, $userObjects{$objID}->{objdata}->{nom}\n" if $CONTENTS{sciper} eq '129136';
 
   return 0;
 }
@@ -707,16 +756,17 @@ sub majObject {
 	my ($item) = @_;
 	
 	my $obj_id 	= $item->{id};
-	my $nom 	= $item->{nom};
-	my $pool 	= $item->{pool};
+	my $nom 		= $item->{nom};
+	my $pool 		= $item->{pool};
 	my $max_pool= $item->{max_pool};
 	my $descr 	= $item->{descr};
-	my $disp 	= $item->{disp};
+	my $disp 		= $item->{disp};
 	my $visible	= $item->{visible};
 	my $datedeb = $item->{datedeb};
 	my $datefin = $item->{datefin};
-	my $plan	= $item->{plan};
+	my $plan		= $item->{plan};
 	my $unites	= $item->{unites};
+	my $hide		= $item->{hide};
 	return unless $nom;
 
 	my $sql;
@@ -739,7 +789,8 @@ sub majObject {
 			datedeb=?,
 			datefin=?,
 			unites=?,
-			plan=?
+			plan=?,
+			hide=?
 		where id=$obj_id
 		};
 
@@ -755,13 +806,14 @@ sub majObject {
 			datedeb=?,
 			datefin=?,
 			unites=?,
-			plan=?
+			plan=?,
+			hide=?
 		};
 		
 	}
 
 	my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($nom,$pool,$max_pool,$descr,$disp,$visible,$datedeb,$datefin,$unites,$plan)) or die "database fatal error : execute : $DBI::errstr";
+	$sth->execute (($nom,$pool,$max_pool,$descr,$disp,$visible,$datedeb,$datefin,$unites,$plan,$hide)) or die "database fatal error : execute : $DBI::errstr";
 
 	unless ($obj_id) {
 		$sql = qq{select LAST_INSERT_ID() from obj};
@@ -805,12 +857,12 @@ sub delObject {
 	erreur ("identification de la ressource absente") unless $objID;
     erreur ("opérations en accès réservé", 1) unless $Admins{$CONTENTS{sciper}}  or $superusers =~ /\b$CONTENTS{sciper}\b/;
 	
-	my $nom 	= $item->{nom};
+	my $nom 		= $item->{nom};
 	my $descr 	= $item->{descr};
-	my $disp 	= $item->{disp};
+	my $disp 		= $item->{disp};
 	my $datedeb = $item->{datedeb};
 	my $datefin = $item->{datefin};
-	my $plan	= $item->{plan};
+	my $plan		= $item->{plan};
 
 	my $sql = qq{select * from res where obj_id=?};
 	my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
@@ -878,19 +930,19 @@ sub addRes {
     
     return unless $res;
 
-	my $nom 	= $res->{nom};
+	my $nom 		= $res->{nom};
 	my $obj_id 	= $res->{objID};
 	my $sciper  = $res->{sciper};
 	my $datedeb	= $res->{datedeb};
 	my $datefin	= $res->{datefin};
 	my $descr 	= $res->{descr};
-	my $dates	= $res->{dates};
-	my $jour 	= $res->{jour};
+	my $dates		= $res->{dates};
+	my $jour 		= $res->{jour};
 	my $periodic= $res->{periodic};
-	my $hdeb 	= $res->{hdeb};
-	my $hfin 	= $res->{hfin};
+	my $hdeb 		= $res->{hdeb};
+	my $hfin 		= $res->{hfin};
 	my $unite 	= $res->{unite};
-	my $pool 	= $res->{pool};
+	my $pool 		= $res->{pool};
 	erreur ("paramètres absents [sciper=$sciper, dates=@$dates,obj_id=$obj_id]") unless $sciper and $dates and $obj_id;
 
 	my $sql = qq{
@@ -966,19 +1018,19 @@ sub majRes {
     my %old_res = getRes ($res_id);
 	erreur ("réservation pas trouvée") unless scalar %old_res;
 
-	my $nom 	= $res->{nom};
+	my $nom 		= $res->{nom};
 	my $obj_id 	= $res->{objID};
 	my $sciper  = $res->{sciper};
 	my $descr 	= $res->{descr};
 	my $datedeb	= $res->{datedeb};
 	my $datefin	= $res->{datefin};
-	my $dates	= $res->{dates};
-	my $jour 	= $res->{jour};
+	my $dates		= $res->{dates};
+	my $jour 		= $res->{jour};
 	my $periodic= $res->{periodic};
-	my $hdeb 	= $res->{hdeb};
-	my $hfin 	= $res->{hfin};
+	my $hdeb 		= $res->{hdeb};
+	my $hfin 		= $res->{hfin};
 	my $unite 	= $res->{unite};
-	my $pool 	= $res->{pool};
+	my $pool 		= $res->{pool};
 	erreur ("paramètres absents [sciper=$sciper, dates=@$dates,obj_id=$obj_id]") unless $sciper and $dates and $obj_id;
 
 	if ($CONTENTS{op} eq 'renew') {
@@ -1094,7 +1146,7 @@ sub disp_res {
    	<td align="right">Description :
    	<td>$allObjects{$res{obj_id}}->{objdata}->{descr}
    <tr>
-   	<td align="right" >Visibilité :
+   	<td align="right" >Visibilité des réservations :
    	   	<td>$visible
    <tr>
    };
@@ -1103,7 +1155,7 @@ sub disp_res {
    	<td align="right" ><span style="color:red">Indisponible :</span>
    	   	<td>Du $indispd1 au $indispd2
    <tr>
-   } if $userObjects{$res{obj_id}}->{objdata}->{datedeb} and $userObjects{$res{obj_id}}->{objdata}->{datedeb}  ne '00000000' ;
+   } if $userObjects{$res{obj_id}}->{objdata}->{datedeb} and $userObjects{$res{obj_id}}->{objdata}->{datedeb}  ne '0000-00-00' ;
    print qq{
    	<td align="right">Plan :
    	   	<td>$allObjects{$res{obj_id}}->{objdata}->{plan}
@@ -1125,11 +1177,12 @@ sub disp_res {
    my $doneby = $dinfo{$res{sciper}}->{nom} ? qq{$dinfo{$res{sciper}}->{nom}&nbsp;$dinfo{$res{sciper}}->{prenom}} : $res{sciper};
    my $modby  = $dinfo{$res{sciper}}->{nom} ? qq{$dinfo{$res{maj_by}}->{nom}&nbsp;$dinfo{$res{maj_by}}->{prenom}} : $res{maj_by};
    my $sigle  = getResSigleUnite (%res);
+   my $no_accred = '<span style="color: red;">(no accred)</span>' if $res{unite} && ! defined $allUnitsUsers{$res{unite}}->{$res{sciper}};
    print qq{
 	   <tr><td align="right" valign="top"><b>Dates :</b><td>$dates_txt
 	   <tr><td align="right"><b>Heure Début :</b><td>$res{hdeb}
 	   <tr><td align="right"><b>Heure Fin :</b><td>$res{hfin}
-	   <tr><td align="right"><b>Réservé pour :</b><td>$doneby
+	   <tr><td align="right"><b>Réservé pour :</b><td>$doneby $no_accred
 	};
 	print qq{<tr><td align="right"><b>Unité :</b><td>$sigle} if $sigle;
 	print qq{<tr><td align="right"><b>Nombre d'objets :</b><td>$pool} if $userObjects{$res{obj_id}}->{objdata}->{pool};
@@ -1229,16 +1282,16 @@ sub getAllRes {
   while (my $data = $sth->fetchrow_hashref) {
 	my $item = {
 		res_id	=> $data->{id},
-		nom		=> $data->{nom},
+		nom			=> $data->{nom},
 		obj_id	=> $data->{obj_id},
 		sciper	=> $data->{sciper},
 		periodic=> $data->{periodic},
-		jour	=> $data->{jour},
-		date	=> $data->{date},
-		hdeb	=> $data->{hdeb},
-		hfin	=> $data->{hfin},
-		unite	=> $data->{unite},
-		pool	=> $data->{pool},
+		jour		=> $data->{jour},
+		date		=> $data->{date},
+		hdeb		=> $data->{hdeb},
+		hfin		=> $data->{hfin},
+		unite		=> $data->{unite},
+		pool		=> $data->{pool},
 	};
 	push @rsrv, $item;
   }
@@ -1263,6 +1316,8 @@ sub selObj {
   
   my $count = 0;
   foreach my $objID (sort {lc($userObjects{$a}->{objdata}->{nom}) cmp lc($userObjects{$b}->{objdata}->{nom})} keys %userObjects) {
+warn "--> selObj : $objID, $userObjects{$objID}->{objdata}->{nom}\n" if $CONTENTS{sciper} eq '129136';
+
   	next unless objAccessAllowed ($objID);
   	next unless $objID;
   	my $nom 	= $userObjects{$objID}->{objdata}->{nom};
@@ -1281,14 +1336,14 @@ sub selObj {
 sub footpage {
 
   print qq{
-  	<td width="120" valign="top" style="padding:4px;border:1px solid;">
+  	<td valign="top" style="width: 210px; padding:4px;border:1px solid;">
   };
   
   if (scalar keys %userObjects) {
 	if (isAuth ()) {
 	  print qq{
 		<div style="width:100%; float:left; background-color:#FDFA9A; border: 1px solid red; padding: 2px;">
-		<h3>nouvelle réservation</h3>
+		<h4>nouvelle réservation</h4>
 		<script language="javascript">
 			function selChekd (id) {
 			var obj = document.getElementById(id);
@@ -1309,10 +1364,10 @@ sub footpage {
 	
 	   print qq{
 		 <br>
-			<input type=radio name=mode value=0 checked><b>ponctuelle</b><br>
-			<input type=radio name=mode value=1><b>quotidienne</b><br>
-			<input type=radio name=mode value=2><b>périodique</b><br>
-		  <p><input type=submit name=go value=continuer></p>
+			<input type=radio name=mode value=0 checked> <b>ponctuelle</b><br>
+			<input type=radio name=mode value=1> <b>quotidienne</b><br>
+			<input type=radio name=mode value=2> <b>périodique</b><br>
+		  <br><input type=submit name=go value=continuer>
 		  </form>
 		  </div>
 		<div class="clear"></div>
@@ -1321,30 +1376,25 @@ sub footpage {
 	}
   }
   print qq{
-    <h3>chercher</h3>
-    <ul id=indented>
+    <h4>chercher</h4>
     <form name="form" action="$thescript/search?op=obj" method=post>
-    <li>une salle/objet : </li>
-    </ul>
+    une salle/objet : <br>
     <input name="nom_obj">
     </form>
     <form name="form" action="$thescript/search?op=usr" method=post>
-    <ul id=indented>
-    <li>une personne (nom ou sciper): </li>
-    </ul>
+    une personne (nom ou sciper):<br>
     <input name="nom_usr">
     </form>
-    <li><img src=/.icons/new_small.gif > <a href=$thescript/listobj>liste de tous les objets</a></li>
+    <br>
+    <a href=$thescript/listobj>liste de tous les objets</a>
 	<hr>
-	<h3><img src=/.icons/new_small.gif > logs</h3>
-	<ul id=indented>
+	<h4> logs</h4>
 	<form name="form" action="$thescript/logs" "method=post"  onsubmit="return selChekd('logobjid');">
-	<li>salle/objet : <br>
+	salle/objet : <br>
 	};
 	$CONTENTS{ACC_TYPE} = '';
 	selObj ('objID', '', 1,'','logobjid');
 	print qq{
-	</ul>
 	  <p><input type=submit name=go value=afficher></p>
 	</form>
 	};
@@ -1352,28 +1402,28 @@ sub footpage {
 	if ($CONTENTS{sciper} and defined $Admins{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/) {
 		print qq{
 		<hr>
-		<b><a href="$thescript/extract"><img src=/.icons/new_small.gif >extraction des réservations</a></b>
+		<b><a href="$thescript/extract">extraction des réservations</a></b>
 	   };
 	}
    
 	print qq{
     <hr>
-    <h3>accès</h3>
-    <ul id=indented>
-    <li><a href=$thescript?login=1>home</a>
+    <h4>accès</h4>
+    <ul style="margin-left: 15px; padding: 0;">
+    <a href=$thescript?login=1>home</a><br>
 	};
 	print qq{
-	  	 <li><a href=$thescript/gestion?op=obj>ressources</a> 
-	  	 <li><a href=$thescript/gestion?op=res>réservations</a> 
+	  	 <a href=$thescript/gestion?op=obj>ressources</a> <br>
+	  	 <a href=$thescript/gestion?op=res>réservations</a> <br>
 	} if scalar keys %userObjects;
 
-	print qq{ <li><a href=$thescript/listcontacts>contact</a>};
-	print qq{<p> <li><a href=$ABS_HOME>absences</a> </p>} if scalar keys %userObjects;
+	print qq{ <a href=$thescript/listcontacts>contact</a><br>};
+	print qq{<p><a href=$ABS_HOME>absences</a> </p>} if scalar keys %userObjects;
 	
 	print qq{ 
-	</ul>
+		</ul>
     <hr>
-	<h3>FAQs</h3>
+	<h4>FAQs</h4>
 	<li><a href=http://wiki.epfl.ch/resfaq#q2 target="_blank">comment avoir accès aux réservations...</a>
 	<li><a href=http://wiki.epfl.ch/resfaq#q3 target="_blank">je reçois une avalanche de messages...</a>
 	<br>[ <a href=http://wiki.epfl.ch/resfaq target="_blank">lire plus...</a> ]
@@ -1413,7 +1463,7 @@ sub main {
 		</div>
 	} if $news;
 		
-    print qq{<h1>Gestion des réservations</h1>
+    print qq{<h2>Gestion des réservations</h2>
     };
     
     unless (keys %userObjects) {
@@ -1429,7 +1479,7 @@ sub main {
     }
 
 	# - what's new
-	print qq{<img src=/.icons/new_small.gif ><a href=http://wiki.epfl.ch/resfaq/news target="_blank"><b>What's new : </b>accès aux données de réservation par web service (en développement)</a>
+	print qq{<a href=http://wiki.epfl.ch/resfaq/news target="_blank"><b>What's new : </b>accès aux données de réservation par web service (en développement)</a>
 	<hr>};
  
     checkDoRenew();
@@ -1489,15 +1539,15 @@ sub checkDoRenew {
 		my $activ_date = get_prev_n_day ($date, 30);
 		if ($crt_date > $activ_date) {
 			push @resToActivate, {
-				id 		=> $id, 
-				nom 	=> $lastres->{nom},
+				id 			=> $id, 
+				nom 		=> $lastres->{nom},
 				obj_id	=> $lastres->{obj_id},
 				obj_nom	=> $lastres->{obj_nom},
-				hdeb	=> $lastres->{hdeb},
-				hfin	=> $lastres->{hfin},
+				hdeb		=> $lastres->{hdeb},
+				hfin		=> $lastres->{hfin},
 				periodic=> $lastres->{periodic},
-				jour	=> $lastres->{jour},
-				date	=> $lastres->{date},
+				jour		=> $lastres->{jour},
+				date		=> $lastres->{date},
 			} if substr($lastres->{date}, 0, 4) eq $year;
 		}
 	}
@@ -1542,7 +1592,8 @@ sub listobj {
 		<th class=header_cell style="min-width:70px;">Droits
 		<th class=header_cell style="min-width:70px;">Nom
 		<th class=header_cell style="min-width:200px;max-width:300px;">Description
-		<th class=header_cell>Visibilité
+		<th class=header_cell>Ressource cachée
+		<th class=header_cell>Visibilité des réservations
 		<th class=header_cell>Accès
 		<th class=header_cell>Plan
 		<th class=header_cell>Administrateurs
@@ -1595,12 +1646,14 @@ sub listobj {
 		<a href="#" onclick="document.getElementById('units_div$objID').style.display='block';">accès implicite...</a>} if $obj->{unites};
 		$access =~ s/,/, /g;
 		$access .= '<br><span style="color:red;">indisponible du '.rev_date($datedeb)." au ".rev_date($datefin).'</span>' if $datedeb ge $year.'0101';
+		my $hide = qq{<span style="color:red;">cachée</span>} if $obj->{hide};
 
 		print qq{
 			<tr $style>
 			  <td valign=top class="td_ul">$droits</td>
 			  <td valign=top class="td_ul">$detLink</td>
 			  <td valign=top class="td_ul" style="max-width:300px;">$obj->{descr}</td>
+			  <td valign=top class="td_ul">$hide</td>
 			  <td valign=top class="td_ul">$visible</td>
 			  <td valign=top class="td_ul">$access</td>
 			  <td valign=top class="td_ul">$planLink</td>
@@ -2022,16 +2075,16 @@ sub draw_salle {
   $color_index = 0;
   foreach my $res (getObjRes ($objID, $date1, $date2)) {
 		my	$res_id	= $res->{res_id};
-		my	$nom	= $res->{nom};
+		my	$nom		= $res->{nom};
 		my	$obj_id	= $res->{obj_id};
 		my	$sciper	= $res->{sciper};
-		my	$jour	= $res->{jour};
-		my	$date	= $res->{date};
-		$date =~ s/\-//g;
-		my	$hdeb	= $res->{hdeb};
-		my	$hfin	= $res->{hfin};
+		my	$jour		= $res->{jour};
+		my	$date		= $res->{date};
+				$date 	=~ s/\-//g;
+		my	$hdeb		= $res->{hdeb};
+		my	$hfin		= $res->{hfin};
     if ($date ge $date1 and $date le $date2) {
-		$date = &get_day_name($date) if ($graph_type eq 'W')  ;
+			$date = &get_day_name($date) if ($graph_type eq 'W')  ;
     	draw_date ($date, $ox, $oy, $hdeb, $hfin, $tuser, $nom, $graph_type, $res_id);
 			$CONTENTS{crt_nom}  = $nom;
 			$CONTENTS{crt_date} = $date;
@@ -2071,7 +2124,9 @@ sub draw_date {
   draw_rect($x1-1,$y1-1,$x2,$y2+1, 1, $bg_color_sect);
   if ($graph_type ne 'M') {
 		my $tmp_nom = substr($nom,0,11);
+		
 		draw_text (int($x1+($x2-$x1-$smallw*length($tmp_nom))/2-$intercar)+3,$y1+12, $fg_color_sect, $tmp_nom);
+		
   }
   printf MAP "R\t%s\t%s\t%s\t%s\t%s\n", $x1, $y1, $x2, $y2, $rec;
 }
@@ -2621,39 +2676,43 @@ Votre système de gestion des réservations
 		   
 		  footpage ();
 	
-	}
-
-	$CONTENTS{objID} =~ s/ //g;
-	
-	$CONTENTS{periodic} = $res{periodic};
-	$CONTENTS{datedeb}  = $res{datedeb};
-	$CONTENTS{datefin}  = $res{datefin};
-	$CONTENTS{hdeb} 	= $res{hdeb};
-	$CONTENTS{hfin} 	= $res{hfin};
-	$CONTENTS{unite} 	= $res{unite};
-	$CONTENTS{pool} 	= $res{pool};
-	$CONTENTS{jour} 	= $res{jour};
-	$CONTENTS{noms} 	= $res{nom};
-	$CONTENTS{descr}	= $res{descr};
-	$CONTENTS{date} 	= $res{dates};
-	$CONTENTS{user} 	= $res{sciper};
-
-	$CONTENTS{datedeb}  =~ s/\-//g;
-	$CONTENTS{datefin}  =~ s/\-//g;
-
-	if ($CONTENTS{periodic} eq "ponctuelle") {
-		$CONTENTS{mode} = 0;
-		my $date = $res{dates};
-		$CONTENTS{date} = pop (@$date);
-		&add_res ();
-	} else {
-		if ($CRT_periodic eq "quotidienne") {
-			$CONTENTS{mode} = 1;
-		} else {
-			$CONTENTS{mode} = 2;
 		}
-		my @dates = &get_dates_from_name($CONTENTS{periodic}, $CONTENTS{jour}, $CONTENTS{datedeb}, $CONTENTS{datefin});
-		&listdates($CONTENTS{objID}, $CONTENTS{date} , \@dates);
+
+		unless($res{unite}) {
+		 $res{unite}  = getResSigleUnite (%res);
+		}
+
+		$CONTENTS{objID} =~ s/ //g;
+	
+		$CONTENTS{periodic} = $res{periodic};
+		$CONTENTS{datedeb}  = $res{datedeb};
+		$CONTENTS{datefin}  = $res{datefin};
+		$CONTENTS{hdeb} 		= $res{hdeb};
+		$CONTENTS{hfin} 		= $res{hfin};
+		$CONTENTS{unite} 		= $res{unite};
+		$CONTENTS{pool} 		= $res{pool};
+		$CONTENTS{jour} 		= $res{jour};
+		$CONTENTS{noms} 		= $res{nom};
+		$CONTENTS{descr}		= $res{descr};
+		$CONTENTS{date} 		= $res{dates};
+		$CONTENTS{user} 		= $res{sciper};
+
+		$CONTENTS{datedeb}  =~ s/\-//g;
+		$CONTENTS{datefin}  =~ s/\-//g;
+
+		if ($CONTENTS{periodic} eq "ponctuelle") {
+			$CONTENTS{mode} = 0;
+			my $date = $res{dates};
+			$CONTENTS{date} = pop (@$date);
+			&add_res ();
+		} else {
+			if ($CRT_periodic eq "quotidienne") {
+				$CONTENTS{mode} = 1;
+			} else {
+				$CONTENTS{mode} = 2;
+			}
+			my @dates = &get_dates_from_name($CONTENTS{periodic}, $CONTENTS{jour}, $CONTENTS{datedeb}, $CONTENTS{datefin});
+			&listdates($CONTENTS{objID}, $CONTENTS{date} , \@dates);
     }
   }
 
@@ -2665,7 +2724,7 @@ sub add_res {
 
    my $sel;
    
-   print qq{<h2><img src=/.icons/agenda.gif >Gestion des réservations</h2>};
+   print qq{<h3><img src=/.icons/agenda.gif >Gestion des réservations</h3>};
 
    $CONTENTS{ACC_TYPE} = 'R';
    if ($CONTENTS{objID}) {
@@ -2730,26 +2789,26 @@ sub add_res {
    }
 
    if ($CONTENTS{op} eq 'dup') {
-	my %res 			= getRes($CONTENTS{res_id});
-	$CONTENTS{res_id} 	= '';
-	$CONTENTS{objID} 	= $res{obj_id};
-	$CONTENTS{noms}		= $res{nom};
-	$CONTENTS{descr} 	= $res{descr};
-	$CONTENTS{hdeb} 	= $res{hdeb};
-	$CONTENTS{hfin} 	= $res{hfin};
-	$CONTENTS{unite} 	= $res{unite};
-	$CONTENTS{date} 	= $crt_date;
-	$CONTENTS{jour}		= $res{jour};
-	$CONTENTS{periodic}	= $res{periodic};
-	$CONTENTS{user}		= $res{sciper};
-	$CONTENTS{pool}		= $res{pool};
-	if ($res{periodic} eq 'ponctuelle') {
-		$CONTENTS{mode} = '0';
-	} elsif ($res{periodic} eq 'quotidienne') {
-		$CONTENTS{mode} = '1';
-	} else {
-		$CONTENTS{mode} = '2';
-	}
+		my %res 			= getRes($CONTENTS{res_id});
+		$CONTENTS{res_id} 	= '';
+		$CONTENTS{objID} 	= $res{obj_id};
+		$CONTENTS{noms}		= $res{nom};
+		$CONTENTS{descr} 	= $res{descr};
+		$CONTENTS{hdeb} 	= $res{hdeb};
+		$CONTENTS{hfin} 	= $res{hfin};
+		$CONTENTS{unite} 	= $res{unite};
+		$CONTENTS{date} 	= $crt_date;
+		$CONTENTS{jour}		= $res{jour};
+		$CONTENTS{periodic}	= $res{periodic};
+		$CONTENTS{user}		= $res{sciper};
+		$CONTENTS{pool}		= $res{pool};
+		if ($res{periodic} eq 'ponctuelle') {
+			$CONTENTS{mode} = '0';
+		} elsif ($res{periodic} eq 'quotidienne') {
+			$CONTENTS{mode} = '1';
+		} else {
+			$CONTENTS{mode} = '2';
+		}
    }
 
    $CONTENTS{pool}		= 1 unless $CONTENTS{pool};
@@ -2762,7 +2821,7 @@ sub add_res {
      print "<b>réservation périodique</b>";
    }
    print " - <font color=red><b>attention:</b> la date limite pour les réservations est le : <b>" . &rev_date($LAST_DATE,1) . qq{</b></font>};
-   if ($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} and $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} ne '00000000') {
+   if ($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} and $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} ne '0000-00-00') {
    	print qq{<br><span style="color:red;">La ressource est inaccessible du }.rev_date($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}).' au '.rev_date($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}).qq{</span>};
    }
 
@@ -2788,7 +2847,7 @@ sub add_res {
 	}
 	
 	print qq{
-		<tr><td><span style="color:red;">indisponible:</span><td>du $indispd1 au $indispd2} if $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} and $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}  ne '00000000';
+		<tr><td><span style="color:red;">indisponible:</span><td>du $indispd1 au $indispd2} if $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} and $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}  ne '0000-00-00';
 	print qq{
 	  <tr><td><b>raison:</b><td><input name=noms value="$CONTENTS{noms}">
 	  <tr><td><b>détails:</b><td><input name=descr value="$CONTENTS{descr}" size=48>
@@ -2861,35 +2920,44 @@ sub add_res {
       &pr_hhmm (" à ", 2,  $CONTENTS{hfin});
    }
 
-	getUserData ($CONTENTS{sciper});
-
-   if ($Admins{$CONTENTS{sciper}}->{$CONTENTS{objID}}) {
-   		$CONTENTS{user} = $CONTENTS{sciper} unless $CONTENTS{user};
+  if ($Admins{$CONTENTS{sciper}}->{$CONTENTS{objID}}) {
+		$CONTENTS{user} = $CONTENTS{sciper} unless $CONTENTS{user};
 		print "<tr><td valign=top><b>réservé pour</b>:<td>";
-		&sel_user('user',$CONTENTS{user}, '');
-   } else {
-   		print qq{<input type=hidden name=user value=$CONTENTS{sciper}>
-   		<tr><td><b>réservé pour:</b><td> $dinfo{$CONTENTS{sciper}}->{prenom}&nbsp;$dinfo{$CONTENTS{sciper}}->{nom}
-   		};
-   }
-   my @accreds = sort {$dinfo{$CONTENTS{sciper}}->{accreds}->{$a}->{ordre} cmp $dinfo{$CONTENTS{sciper}}->{accreds}->{$b}->{ordre}} keys %{$dinfo{$CONTENTS{sciper}}->{accreds}};
-   if (scalar @accreds > 1) {
-	   print qq{<tr><td><b>unité:</b><td> <select name="unite">};
-#	   my $selected = 'selected';
+		if (defined $CONTENTS{unite} && !$allUnitsUsers{$CONTENTS{unite}}->{$CONTENTS{user}}) {
+			print qq{$CONTENTS{user} - no accred<br>};
+			$CONTENTS{user} = '';
+		}
+	
+		&sel_user('user', $CONTENTS{user}, '');
+
+  } else {
+		print qq{<input type=hidden name=user value=$CONTENTS{sciper}>
+		<tr><td><b>réservé pour:</b><td> $dinfo{$CONTENTS{sciper}}->{prenom}&nbsp;$dinfo{$CONTENTS{sciper}}->{nom}
+		};
+  }
+
+	getUserData ($CONTENTS{user});
+
+  print qq{<tr><td><b>unité:</b><td id="div-unite">};
+
+  my @accreds = sort { $dinfo{$CONTENTS{user}}->{accreds}->{$a}->{ordre} cmp $dinfo{$CONTENTS{user}}->{accreds}->{$b}->{ordre} } keys %{$dinfo{$CONTENTS{user}}->{accreds}};
+  if (scalar @accreds > 1) {
+	   print qq{<select name="unite">};
+	   my $selected = 'selected';
 	   foreach my $unite (@accreds) {
+warn "--> add_res $unite : ordre=$dinfo{$CONTENTS{user}}->{accreds}->{$unite}->{ordre}\n";
 	   	my $selected = $CONTENTS{unite} eq $unite ? 'selected' : '';
-	   	print qq{<option value="$unite" $selected>$dinfo{$CONTENTS{sciper}}->{accreds}->{$unite}->{sigle}</option>};
+	   	print qq{<option value="$unite" $selected>$dinfo{$CONTENTS{user}}->{accreds}->{$unite}->{sigle}</option>};
 	   }
-	   print qq{</select>};
+	   print qq{</select> (par ordre des priorités accred)};
    } else {
-	   print qq{<input type="hidden" name="unite" value="$accreds[0]->{sigle}"> };	#	- unité défaut
+   	 my $unite = $accreds[0];
+	   print qq{
+	   	<input type="hidden" name="unite" value="$unite">
+	   	$dinfo{$CONTENTS{user}}->{accreds}->{$unite}->{sigle}
+	   };	#	- unité défaut
    }
    print "</table>";
-
-#   if ($userObjects{$CONTENTS{objID}}->{objdata}->{pool} > 1) {
-#	  print qq{<p>Saisir les dates et <a href="" style="text-align: right;">vérifier la disponibilité du pool...</a></p>};
-#   }
-
    print "<br><input type=submit value=enregistrer>   <input type=reset  value=reset>";
    print "</form>";
 
@@ -2899,10 +2967,9 @@ sub add_res {
 #__________________
 sub getResSigleUnite {
   my (%res) = @_;
-  
+
   return unless $res{sciper};
   getUserData ($res{sciper}) unless defined $dinfo{$res{sciper}}->{accreds};
-  
   return $dinfo{$res{sciper}}->{accreds}->{$res{unite}}->{sigle} if $res{unite};
   my @accreds = sort {$dinfo{$CONTENTS{sciper}}->{accreds}->{$a}->{ordre} cmp $dinfo{$CONTENTS{sciper}}->{accreds}->{$b}->{ordre}} keys %{$dinfo{$res{sciper}}->{accreds}};
   return $dinfo{$res{sciper}}->{accreds}->{$accreds[0]}->{sigle} ;
@@ -2948,19 +3015,19 @@ sub done_res {
 	}
 
 	my $res = {
-		nom 	=> $CONTENTS{noms},
+		nom 		=> $CONTENTS{noms},
 		sciper  => $CONTENTS{user},
 		objID   => $CONTENTS{objID},
 		descr 	=> $CONTENTS{descr},
 		datedeb	=> $CONTENTS{dates},
 		datefin	=> $CONTENTS{dates},
-		dates	=> \@dates,
-		jour 	=> $CONTENTS{jour},
+		dates		=> \@dates,
+		jour 		=> $CONTENTS{jour},
 		periodic=> $CONTENTS{periodic},
-		hdeb 	=> $CONTENTS{hdeb},
-		hfin 	=> $CONTENTS{hfin},
+		hdeb 		=> $CONTENTS{hdeb},
+		hfin 		=> $CONTENTS{hfin},
 		unite 	=> $CONTENTS{unite},
-		pool 	=> $CONTENTS{pool},
+		pool 		=> $CONTENTS{pool},
 	};
 
 	if ($CONTENTS{res_id}) {
@@ -3008,19 +3075,19 @@ sub done_res {
 	  &resConflict($CONTENTS{objID}, $CONTENTS{res_id}, $CONTENTS{hdeb}, $CONTENTS{hfin}, $CONTENTS{pool}, \@sel_dates);
 
 	  my $res = {
-		nom 	=> $CONTENTS{noms},
-		pool 	=> $CONTENTS{pool},
+		nom 		=> $CONTENTS{noms},
+		pool 		=> $CONTENTS{pool},
 		res_id 	=> $CONTENTS{res_id},
 		sciper  => $CONTENTS{user},
 		objID   => $CONTENTS{objID},
 		descr 	=> $CONTENTS{descr},
 		datedeb	=> $CONTENTS{datedeb},
 		datefin	=> $CONTENTS{datefin},
-		dates	=> \@sel_dates,
-		jour 	=> $CONTENTS{jour},
+		dates		=> \@sel_dates,
+		jour 		=> $CONTENTS{jour},
 		periodic=> $CONTENTS{periodic},
-		hdeb 	=> $CONTENTS{hdeb},
-		hfin 	=> $CONTENTS{hfin},
+		hdeb 		=> $CONTENTS{hdeb},
+		hfin 		=> $CONTENTS{hfin},
 		unite 	=> $CONTENTS{unite},
 	  };
 
@@ -3028,9 +3095,8 @@ sub done_res {
 		$res->{res_id} = $CONTENTS{res_id};
 	  	majRes ($res)
 	  } else {
-		addRes ($res);
+			addRes ($res);
 	  }
-
 	  &footpage;	
    }
 
@@ -3065,8 +3131,8 @@ sub objDispo {
   return i  if $Admins{$CONTENTS{sciper}}->{$objID} ;	# - accès restreint - admin
   my $d1 = $userObjects{$objID}->{objdata}->{datedeb};
   my $d2 = $userObjects{$objID}->{objdata}->{datefin};
-  $d1 =~ s/\-//g;
-  $d2 =~ s/\-//g;
+  	 $d1 =~ s/\-//g;
+ 	   $d2 =~ s/\-//g;
 
   return 1 unless ($date ge $d1 and $date le $d2);
   return 0;
@@ -3125,10 +3191,11 @@ sub listdates {
    print "</select><p>\n";
    &pr_hhmm (" de ", 1, $CONTENTS{hdeb});
    $CONTENTS{hdeb} = $DEBUT unless $CONTENTS{deb};
-   unless ($CONTENTS{hfin})   {
-   	 ($hour,$rest)=split(/h/,$CONTENTS{hdeb});
-	 $hour++;
-	 $CONTENTS{hfin}=$hour.'h'.$rest;
+   unless ($CONTENTS{hfin})   
+   {
+			($hour,$rest) = split(/h/,$CONTENTS{hdeb});
+			$hour++;
+			$CONTENTS{hfin} = $hour.'h'.$rest;
    }
    &pr_hhmm (" à ", 2, $CONTENTS{hfin});
    print "<td>Pour cette réservation vous avez choisi les dates ci-contre.
@@ -3140,8 +3207,8 @@ sub listdates {
    print "</table>";
 
    if ($Admins{$CONTENTS{sciper}}->{$objID}) {
-		print "<tr><td valign=top><b>réservé pour:</b><td>";
-		&sel_user('user',$CONTENTS{user}, '-- choisir --');
+			print "<tr><td valign=top><b>réservé pour:</b><td>";
+			&sel_user('user',$CONTENTS{user}, '-- choisir --');
    } else {
    		print "<input type=hidden name=user value=$CONTENTS{sciper}>\n";
    }
@@ -3156,8 +3223,8 @@ sub listdates {
 #__________________
 sub gestion {
 
-   ges_res() 	  	if $CONTENTS{op} eq 'res';
-   ges_obj () 		if $CONTENTS{op} eq 'obj' ; 
+   ges_res() 	  		if $CONTENTS{op} eq 'res';
+   ges_obj () 			if $CONTENTS{op} eq 'obj' ; 
    list_conflits () if $CONTENTS{op} eq 'conflit' ;
    
 }
@@ -3166,41 +3233,41 @@ sub gestion {
 sub ges_res {
   my ($realuser)   = @_;
 
-   print "<h1>Gestion/consultation des réservations </h1>\n";
+   print "<h2>Consultation et gestion des réservations </h2>\n";
    
 # - consultation
    print qq{
    	<form name="form" action="$thescript/cons_res" method="post">
-   	<li><b>consulter les réservations</b> :
+   	<h4>Consulter les réservations</h4>
    };
 	
    checkConflicts ();
 	
 	print qq{
-	<ul>
 	<table>
+	<tr>
+	<td valign=top><b>Ressource/salle : (sélection multiple possible)</b> </td>
+	<td>
 	};
-    print qq{<tr><td align="right" valign="bottom">Ressource/salle : <br> (sélection multiple possible)<td>};
-    selObj ('objID','',1, 'multiple');
-    my $lastdate = &get_next_n_day($crt_date,31);
-   	print qq{
-   		<td  valign="bottom">du <input name="date1" id="date1" size="10" value="}.rev_date($crt_date).qq{">
+	selObj ('objID','',1, 'multiple');
+	my $lastdate = &get_next_n_day($crt_date,31);
+	print qq{
+	<tr>
+	<td colspan=2><b>Du</b> <input name="date1" id="date1" size="10" value="}.rev_date($crt_date).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
-		</a>
-
-		au <input name="date2" id="date2" size="10" value="}.rev_date($lastdate).qq{">
+			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0"></a>&nbsp;
+		<b>au</b> <input name="date2" id="date2" size="10" value="}.rev_date($lastdate).qq{">
 		<a href="#" 
 			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
 		</a>
 		
 		<tr>
-			<td>Filtrer par mots clés de la raison de réservation :<br>(séparés par espace)
+			<td><b>Filtrer par mots clés</b> de la raison de réservation :<br>(séparés par espace)
 			<td colspan="2"><input name="motcle" size="48">
 		</tr>
 
 	 </table>
-	 <p><input type="submit" name="go" value="afficher"></p>
+	 <br><input type="submit" name="go" value="afficher"></p>
 	 </ul>
    	</form>
    	};
@@ -3211,12 +3278,12 @@ sub ges_res {
 #__________________
 sub sel_user {
   my ($param, $value, $all) = @_;
-  
   my @objUsers = getObjUsers ($CONTENTS{objID});
   erreur ("Aucun utilisateur pour cette ressource, veuillez avertir le support technique") unless scalar @objUsers;
-  
-  print qq{<select name="$param">};
+
+  print qq{<select name="$param" id="users" onchange="getUserAccreds('users');">};
   print qq{<option value="" selected>$all</option>} if $all;
+  print qq{<option value="-1" selected>-- choisir --</option>} unless $value;
   foreach my $sciper (sort {lc($dinfo{$a}->{nom}) cmp lc($dinfo{$b}->{nom})} @objUsers) {
   	next unless $dinfo{$sciper}->{nom};
   	my $selected = $sciper eq $value ? 'selected' : '';
@@ -3232,13 +3299,13 @@ sub cons_res {
 	my $date1 = &check_date($CONTENTS{date1});
 	my $date2 = &check_date($CONTENTS{date2});
 
-    print  qq{
+  print  qq{
 	<h2><img src=/.icons/agenda.gif >Consultation des réservations </h2>
 	du }.rev_date($date1)." au ".rev_date($date2);
 
 	listRes ($date1, $date2, $CONTENTS{objID}, $CONTENTS{sciper_todo});
 	
-    footpage;
+  footpage;
 }
 
 #__________________
@@ -3285,38 +3352,42 @@ sub done_obj {
    $CONTENTS{descr} =~ s/\s+$//g;
    $CONTENTS{pool}  = 1 unless $CONTENTS{pool};
 
-   $errors .= qq{nom ressource vide <br>} 					unless $CONTENTS{nom};
-   $errors .= qq{description de la ressource vide<br>} 		unless $CONTENTS{descr};
+   $errors .= qq{nom ressource vide <br>} 									unless $CONTENTS{nom};
+   $errors .= qq{description de la ressource vide<br>} 			unless $CONTENTS{descr};
    $errors .= qq{nombre d'objets du pool non-numérique<br>} if $CONTENTS{pool} and $CONTENTS{pool} =~ /\D/;
    $errors .= qq{nb max d'objetsen réservation plus grand que le pool<br>} if $CONTENTS{max_pool} > $CONTENTS{pool};
-
+	 if ($CONTENTS{disp} eq 'r' || $CONTENTS{disp} eq 'i') {
+warn "--> done_obj: $CONTENTS{date1}, $CONTENTS{date2}\n";
+	 	   $errors .= qq{dates d'indisponibilité pas précisées} unless $CONTENTS{date1} && $CONTENTS{date2};
+	 }
    erreur ($errors);
 
-   if ($CONTENTS{date1} or $CONTENTS{date2}) {
-	   my ($tday, $tmon, $tyear) = split (/\//, $CONTENTS{date1});
-		  ($tday, $tmon, $tyear) = split (/\./, $CONTENTS{date1}) unless $tday and $tmon and $tyear;
-	   my $date = &check_date($CONTENTS{date1});
-	   $CONTENTS{datedeb} = sprintf "%4d-%02d-%02d", $tyear, $tmon, $tday;
-	
-	   my ($tday, $tmon, $tyear) = split (/\//, $CONTENTS{date2});
-		  ($tday, $tmon, $tyear) = split (/\./, $CONTENTS{date2}) unless $tday and $tmon and $tyear;
-	   my $date = &check_date($CONTENTS{date2});
-	   $CONTENTS{datefin} = sprintf "%4d-%02d-%02d", $tyear, $tmon, $tday;
-   }
+	 if ($CONTENTS{date1} || $CONTENTS{date2}) {
+		 $errors .= qq{'dates d\'indisponibilité pas précisées'} unless $CONTENTS{date1} && $CONTENTS{date2};
+		 my ($tday, $tmon, $tyear) = split (/\//, $CONTENTS{date1});
+			($tday, $tmon, $tyear) 	 = split (/\./, $CONTENTS{date1}) unless $tday and $tmon and $tyear;
+		 my $date = &check_date($CONTENTS{date1});
+		 $CONTENTS{datedeb} = sprintf "%4d-%02d-%02d", $tyear, $tmon, $tday;
 
+		 my ($tday, $tmon, $tyear) = split (/\//, $CONTENTS{date2});
+			($tday, $tmon, $tyear) = split (/\./, $CONTENTS{date2}) unless $tday and $tmon and $tyear;
+		 my $date = &check_date($CONTENTS{date2});
+		 $CONTENTS{datefin} = sprintf "%4d-%02d-%02d", $tyear, $tmon, $tday;
+	 }
    my $obj = {
-	id	 	=> $CONTENTS{objID},
-	nom 	=> $CONTENTS{nom},
-	pool 	=> $CONTENTS{pool},
-	max_pool=> $CONTENTS{max_pool},
-	descr 	=> $CONTENTS{descr},
-	disp 	=> $CONTENTS{disp},
-	visible	=> $CONTENTS{visible},
-	datedeb => $CONTENTS{datedeb},
-	datefin => $CONTENTS{datefin},
-	access 	=> $CONTENTS{access},
-	plan 	=> $CONTENTS{plan},
-	unites 	=> $CONTENTS{unites},
+		id	 		=> $CONTENTS{objID},
+		nom 		=> $CONTENTS{nom},
+		pool 		=> $CONTENTS{pool},
+		max_pool=> $CONTENTS{max_pool},
+		descr 	=> $CONTENTS{descr},
+		disp 		=> $CONTENTS{disp},
+		visible	=> $CONTENTS{visible},
+		datedeb => $CONTENTS{datedeb},
+		datefin => $CONTENTS{datefin},
+		access 	=> $CONTENTS{access},
+		plan 		=> $CONTENTS{plan},
+		unites 	=> $CONTENTS{unites},
+		hide	 	=> $CONTENTS{hide},
    };
    
    my $objID = majObject ($obj);
@@ -3324,8 +3395,6 @@ sub done_obj {
    print qq{
    opération effectuée : <a href="$thescript/gestion?op=obj">retour à la liste des ressources</a>
    };
-  
-#   cons_obj ($objID);
    
    &footpage;
 }
@@ -3507,7 +3576,7 @@ sub extract {
 sub maj_obj {
 
    my $objID = $CONTENTS{objID};
-   my ($obj, $title, $nom, $descr, $disp, $visible, $visip, $visir, $datedeb, $datefin, $plan, $admins, $users, $disp1, $disp2, $unites);
+   my ($obj, $title, $nom, $descr, $disp, $visible, $visip, $visir, $datedeb, $datefin, $plan, $admins, $users, $disp1, $disp2, $disp3, $unites, $hide);
    
    erreur ("opérations en accès réservé") unless $Admins{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/;
    
@@ -3531,33 +3600,34 @@ sub maj_obj {
   	 	footpage();
   	 }
   	 
-  	 $title = qq{Mise à jour d'une ressource};
+  	 $title 	= qq{Mise à jour d'une ressource};
   	 $nom 		= $obj->{nom};
   	 $descr 	= $obj->{descr};
   	 $disp 		= $obj->{disp};
   	 $visible	= $obj->{visible};
-  	 $datedeb 	= $obj->{datedeb};
-  	 $datefin 	= $obj->{datefin};
+  	 $datedeb = $obj->{datedeb};
+  	 $datefin = $obj->{datefin};
   	 $plan 		= $obj->{plan};
   	 $unites	= $obj->{unites};
   	 $nom 		= $obj->{nom};
   	 $nom 		= $obj->{nom};
   	 $pool 		= $obj->{pool};
-  	 $max_pool	= $obj->{max_pool};
+  	 $max_pool= $obj->{max_pool};
+  	 $hide		= 'checked' if $obj->{hide};
   	 $visip		= 'checked' unless $visible eq 'r';
   	 $visir		= 'checked' if $visible eq 'r';
   	 $disp1		= 'checked' if $disp eq 'd';
   	 $disp2		= 'checked' if $disp eq 'r';
+  	 $disp3		= 'checked' if $disp eq 'i';
    } else {
-	 $title = qq{Ajouter une ressource};
-	 $visip = 'checked';
-	 $disp1	= 'checked';
+		 $title = qq{Ajouter une ressource};
+		 $visip = 'checked';
+		 $disp1	= 'checked';
    }
-   	$datedeb =~ s/\-//g;
-   	$datefin =~ s/\-//g;
-   	
-   	$pool 	  = 1 unless $pool;
-   	$max_pool = 1 unless $max_pool;
+   $datedeb  =~ s/\-//g;
+   $datefin  =~ s/\-//g;
+	 $pool 	   = 1 unless $pool;
+	 $max_pool = 1 unless $max_pool;
 
    print  qq{<h1>$title</h1>
    <form name="form1" action="$thescript/done_obj" method="post">
@@ -3565,19 +3635,19 @@ sub maj_obj {
    Les champs en gras sont obligatoires
    <table>
    <tr>
-     <td align="right" width="200"><b>Nom : </b></td>
+     <td align="right" width="200"><b>Nom</b></td>
      <td><input name="nom" width="48" value="$nom"></td>
    </tr>
    <tr>
-     <td align="right" width="200"><img src="/.icons/new_small.gif"> <b>Ressource de type <em>pool</em> <br>nombre d'objets :</b></td>
+     <td align="right" width="200"><img src="/.icons/new_small.gif"> <b>Ressource de type <em>pool</em> <br>nombre d'objets</b></td>
      <td><input name="pool" value="$pool"> (1 si la ressource est unique)</td>
    </tr>
    <tr>
-     <td align="right" width="200"> Nb max d'objets par réservation : </td>
+     <td align="right" width="200"> Nb max d'objets par réservation</td>
      <td><input name="max_pool" value="$max_pool"></td>
    </tr>
    <tr>
-     <td align="right" width="200" valign="top"><b>Description : </b></td>
+     <td align="right" width="200" valign="top"><b>Description</b></td>
      <td><textarea name="descr" cols="48" rows="3">$descr</textarea></td>
    </tr>
 
@@ -3587,26 +3657,34 @@ sub maj_obj {
 
 	 <input name="unites" id="unites" value="$unites" size="72" OnClick="window.open('$thescript/popup?unites='+document.getElementById('unites').value,'absres','height=640,width=640,scrollbars=yes');"> (sigles)</td>
    </tr>
+
+   <tr>
+     <td align="right" width="200" valign="top"><span style="color: red; font-weight: bold;">Masquer la ressource</span></td>
+     <td>
+       <input type="checkbox" name="hide" value="1" $hide> ressource visible seulement pour les ayants-droit<br>
+     </td>
+   </tr>
    
    <tr>
-     <td align="right" width="200" valign="top"><b>Visibilité des réservations : </b></td>
+     <td align="right" width="200" valign="top"><b>Visibilité des réservations</b></td>
      <td>
        <input type="radio" name="visible" value="p" $visip> ouverte (toute personne authentifiée Tequila)<br>
        <input type="radio" name="visible" value="r" $visir> restreinte (selon droits implicites ou explicites)<br>
      </td>
    </tr>
    <tr>
-     <td align="right" width="200" valign="top"><b>Accès pour réservations : </b></td>
+     <td align="right" width="200" valign="top"><b>Accès pour réservations</b></td>
      <td>
        <input type="radio" name="disp" value="d" $disp1> disponible (accès implicites ou explicites)<br>
        <input type="radio" name="disp" value="r" $disp2> restreint (réservé aux administrateurs et aux accès explicites)<br>
+       <input type="radio" name="disp" value="i" $disp3> indisponible (réservé aux administrateurs)<br>
        <span style="color:red; margin-right:10px;">indisponible 
-       	du : <input name="date1" id="date1" size="10" value="}.rev_date($datedeb).qq{">
+       	du <input name="date1" id="date1" size="10" value="}.rev_date($datedeb).qq{">
 		<a href="#" 
 			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
 		</a>
 
-       	au : <input name="date2" id="date2" size="10" value="}.rev_date($datefin).qq{">
+       	au <input name="date2" id="date2" size="10" value="}.rev_date($datefin).qq{">
 		<a href="#" 
 			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
 		</a>
@@ -3616,7 +3694,7 @@ sub maj_obj {
      </td>
    </tr>
    <tr>
-     <td align="right" width="200">Plan : </td>
+     <td align="right" width="200">Plan </td>
      <td><input type="text" name="plan" size="32" value="$plan"> 	libellé du local (p.ex. ma a0 364) - chercher sur <a href="https://plan.epfl.ch/" target="_blank">plan.epfl.ch</a></td>
    </tr>
    </table>
@@ -3704,16 +3782,13 @@ sub search {
 		erreur ("le nom de la salle ou de l'objet recherché absent", 1) unless $nom;
 		my %objects;
 		my $count=0;
-
-	    $nom =~ s/\s//g;
-	    $nom =~ s/'/''/g;
-	    
-#	    my $sql = qq{select * from obj where nom like '%$nom%' };
-	    my $sql = qq{select * from obj where replace(nom, ' ', '') like '%$nom%' };
-
-	    my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	    $sth->execute () or die "database fatal error : execute : $DBI::errstr";
-	    while (my $data = $sth->fetchrow_hashref) {
+		$nom =~ s/\s//g;
+		$nom =~ s/'/''/g;
+		my $sql = qq{select * from obj where replace(nom, ' ', '') like '%$nom%' };
+		my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
+		$sth->execute () or die "database fatal error : execute : $DBI::errstr";
+		while (my $data = $sth->fetchrow_hashref) {
+	  	next unless objAccessAllowed ($data->{id});
 			$objects{$data->{id}} = $data;
 			$count++;
 		}
@@ -3837,7 +3912,7 @@ sub search {
 sub disp_obj {
 	my (%objects) = @_;
 
-   print  "<h1>Consultation et gestion des objets en réservation</h1>\n";
+   print  "<h2>Consultation et gestion des objets en réservation</h2>\n";
    
    if (scalar %{$Admins{$CONTENTS{sciper}}}) {
    		print qq{
@@ -3869,7 +3944,8 @@ sub disp_obj {
 		<th class=header_cell style="min-width:70px;">Droits
 		<th class=header_cell style="min-width:70px;">Nom
 		<th class=header_cell style="min-width:200px;max-width:300px;">Description
-		<th class=header_cell>Visibilité
+		<th class=header_cell>Ressource cachée
+		<th class=header_cell>Visibilité des réservations
 		<th class=header_cell>Accès
 		<th class=header_cell>Plan
 		<th class=header_cell>Administrateurs
@@ -3893,16 +3969,17 @@ sub disp_obj {
 		my $admins = join "<br>", @admins;
 		my $style;
 
-		my $access = 'disponible'	  if $obj->{disp} eq 'd';
-		   $access = '<span style="color:red;">restreint</span>' 	  if $obj->{disp} eq 'r';
+		my $access = 'disponible'	 																			if $obj->{disp} eq 'd';
+		   $access = '<span style="color:orange;">restreint</span>' 	  if $obj->{disp} eq 'r';
+		   $access = '<span style="color:red;">indisponible</span>' 	  if $obj->{disp} eq 'i';
 		my $visible= $obj->{visible} eq 'r' ? '<span style="color:red;">restreinte</span>' : 'ouverte' ;
 		   $datedeb = $obj->{datedeb};
 		   $datefin = $obj->{datefin};
 		   $datedeb =~ s/\-//g;
 		   $datefin =~ s/\-//g;
 		   $access .= '<br><span style="color:red;">indisponible du '.rev_date($datedeb)." au ".rev_date($datefin).'</span>' if $datedeb and $datedeb  ne '00000000';
-		$style = qq{style="background-color:#FCE3E3;"} if $access =~ /indisponible/;
-		$style = qq{style="background-color:#orange;"} if $access =~ /restreint/;
+		$style = qq{style="background-color:#FCE3E3;"} if $obj->{disp} eq 'i';
+		$style = qq{style="background-color:#orange;"} if $obj->{disp} eq 'r';
 		my $mail = 'dot.gif';
 		$mail = $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}}->{mail} ? 'email-ok.gif' : 'email-ko.gif';
 		
@@ -3942,6 +4019,7 @@ sub disp_obj {
 		<a href="#" onclick="document.getElementById('units_div$objID').style.display='block';">accès implicite...</a>} if $obj->{unites};
 		$access =~ s/,/, /g;
 		$actionLink = '' unless $showAction;
+		my $hide = qq{<span style="color:red;">cachée</span>} if $obj->{hide};
 
 		print qq{
 			<tr $style>
@@ -3949,6 +4027,7 @@ sub disp_obj {
 			  <td valign=top class="td_ul">$droits</td>
 			  <td valign=top class="td_ul">$detLink</td>
 			  <td valign=top class="td_ul" style="max-width:300px;">$obj->{descr}</td>
+			  <td valign=top class="td_ul">$hide</td>
 			  <td valign=top class="td_ul">$visible</td>
 			  <td valign=top class="td_ul">$access</td>
 			  <td valign=top class="td_ul">$planLink</td>
@@ -4175,8 +4254,9 @@ sub cons_obj {
 
 	}
 
-	my $access  = 'disponible' if $obj->{disp} eq 'd';
-	   $access  = 'restreint'  if $obj->{disp} eq 'r';
+	my $access  = 'disponible' 		if $obj->{disp} eq 'd';
+	   $access  = 'restreint'  		if $obj->{disp} eq 'r';
+	   $access  = 'indisponible'  if $obj->{disp} eq 'i';
 	my $unites  = $obj->{unites};
 	my $visible = $obj->{visible} eq 'r' ? "restreinte (ayants-droit)" : "ouverte";
 	   $datedeb = $obj->{datedeb};
@@ -4193,12 +4273,15 @@ sub cons_obj {
 	<b>Nom :</b> $obj->{nom}<br>
 	<b>Description : </b>$obj->{descr}<br>
 	};
-	print qq{<b>Nb de ressources disponibles</b> : $obj->{pool}<br>} 		if ($obj->{pool} > 1);
+	print qq{<b>Nb de ressources disponibles</b> : $obj->{pool}<br>} 				if ($obj->{pool} > 1);
 	print qq{<b>Nb max d'objets par réservation</b> : $obj->{max_pool}<br>} if ($obj->{pool} > 1);
 	print qq{<b>Plan :</b> <a href="$URLplan?q=$obj->{plan}"><img src="/.icons/plan.gif" border="0">$obj->{plan}</a><br>} if $obj->{plan};
 	my $implicitTxt = $unites ? $unites : qq{aucun - seuls les comptes explicites ci-dessous ont accès};
 	print qq{
 		<b>Droits d'accès implicites : </b>$implicitTxt<br>
+	};
+	print qq{<span style="color:red; font-weight: bold;">Ressource visible seulement pour les personnes enregistrées explicitement</span><br>} if $obj->{hide};
+	print qq{
 		<b>Visibilité des réservations : </b>$visible<br>
 		<b>Accès pour réservations :</b> $access
 	
@@ -4212,8 +4295,8 @@ sub cons_obj {
 		<div class="clear both"></div>
 	};
 
-	if ($allObjects{$objID}->{objdata}->{datedeb} and $allObjects{$objID}->{objdata}->{datedeb}  ne '00000000') {
-		print qq{<br><span style="color:red;">La ressource est inaccessible du }.rev_date($allObjects{$objID}->{objdata}->{datedeb}).' au '.rev_date($allObjects{$objID}->{objdata}->{datedeb}).qq{</span>};
+	if ($allObjects{$objID}->{objdata}->{datedeb} and $allObjects{$objID}->{objdata}->{datedeb}  ne '0000-00-00') {
+		print qq{<br><span style="color:red;">La ressource est inaccessible du }.rev_date($allObjects{$objID}->{objdata}->{datedeb}).' au '.rev_date($allObjects{$objID}->{objdata}->{datefin}).qq{</span>};
 	}
 	print qq{
 	</div>
@@ -4485,7 +4568,7 @@ sub listcontacts {
 
 	my $admin_list;
 	print qq{
-	<h1>Gestion des réservations </h1>
+	<h2>Gestion des réservations </h2>
 	<h3>contacts</h3>
 	<b>les administrateurs des ressources</b> à votre disposition
 		<ul id="indented">
@@ -4518,17 +4601,159 @@ sub listcontacts {
 }
 
 #--------#
-sub res_header {
+sub res_header_NEW {
 
    return if $HEADER_DONE;
    
    print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
+
+   print qq{<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Réservations en ligne</title>
+
+	<meta charset="utf-8" />
+	<meta name="description" content="" />
+	<meta name="msapplication-TileColor" content="#ffffff">
+
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" content="#e30713">
+
+	<link rel="shortcut icon" type="image/x-icon" href="//web2018.epfl.ch/1.0.2/icons/favicon.ico">
+	<link rel="icon" type="image/png" sizes="16x16" href="//web2018.epfl.ch/1.0.2/icons/favicon-16.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="//web2018.epfl.ch/1.0.2/icons/favicon-32.png">
+	<link rel="apple-touch-icon" sizes="180x180" href="//web2018.epfl.ch/1.0.2/icons/apple-touch-icon.png">
+
+	<link rel="stylesheet" href="//web2018.epfl.ch/1.0.2/css/elements.min.css">
+
+	<script async src="https://www.googletagmanager.com/gtag/js?id=UA-4833294-1"></script>
+	<script>
+		window.dataLayer = window.dataLayer || [];
+		function gtag(){dataLayer.push(arguments);}
+		gtag('js', new Date());
+		gtag('config', 'UA-4833294-1', { 'anonymize_ip': true });
+	</script>
+
+	 <link rel="stylesheet" href="/absresv2.css">
+	 <script src="/CalendarPopup.js" type="text/javascript"></script>
+
+    <title>réservations@epfl</title> 
+</head> 
+<body data-spy="scroll" data-target="#intermediate-nav" data-offset="0">
+ 
+ <header role="banner" class="header header-light">
+
+	<div class="drawer mr-3 mr-xl-0">
+	<button class="drawer-toggle">
+	<svg class="icon" aria-hidden="true"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#icon-chevron-right"></use></svg>
+	</button>
+	<a href="https://epfl.ch/" class="drawer-link">
+	<span class="text">
+	Go to main site
+	</span>
+	</a>
+	</div>
+  	
+ 	<div class="site-branding">
+		<a class="logo" href="https://www.epfl.ch/en/">
+		<img src="https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg" alt="Logo EPFL, École polytechnique fédérale de Lausanne" class="img-fluid">
+		</a>
+<!-- 
+		<a class="logo-50" href="https://www.epfl.ch/campus/events/celebration-en/">
+		<img src="https://www.epfl.ch/wp-content/themes/wp-theme-2018/theme/img/logo50.gif" alt="Logo EPFL 50e anniversaire" width="101" height="91">
+		</a>
+ -->
+	</div>
+	<h1>Réservations en ligne</h1>
+
+	<div class="dropdown dropright search d-none d-xl-block">
+		<a class="dropdown-toggle" href="#" data-toggle="dropdown">
+			<svg class="icon" aria-hidden="true"><use xlink:href="#icon-search"></use></svg>
+		</a>
+		<form action="https://search.epfl.ch/" class="dropdown-menu border-0 p-0">
+			<input type="hidden" name="filter" value="people">
+			<div class="search-form mt-1 input-group">
+				<TMPL_IF NAME=browser_FR>
+					<label for="search" class="sr-only">Rechercher sur le site</label>
+					<input type="text" class="form-control" name="q" placeholder="Rechercher">
+					<button type="submit" class="d-none d-xl-block btn btn-primary input-group-append">Valider</button>
+				<TMPL_ELSE>
+					<label for="search" class="sr-only">Search on site</label>
+					<input type="text" class="form-control" name="q" placeholder="Search">
+					<button type="submit" class="d-none d-xl-block btn btn-primary input-group-append">Search</button>
+				</TMPL_IF>
+			</div>
+		</form>
+	</div>
+
+	<form action="https://search.epfl.ch/" class="d-lg-none">
+		<input type="hidden" name="filter" value="people">
+		<div class="input-group search-mobile" role="search">
+			<div class="input-group-prepend">
+				<span class="input-group-text">
+					<svg class="icon" aria-hidden="true"><use xlink:href="#icon-search"></use></svg>
+				</span>
+			</div>
+				<TMPL_IF NAME=browser_FR>
+					<label for="search" class="sr-only">Rechercher sur le site</label>
+					<input type="text" class="form-control" name="q" placeholder="Rechercher">
+				<TMPL_ELSE>
+					<label for="search" class="sr-only">Search on site</label>
+					<input type="text" class="form-control" name="q" placeholder="Search">
+				</TMPL_IF>
+		</div>
+	</form>
+
+</header>
+
+<div class="main-container">
+
+<div>
+ <div class="overlay"></div>
+ 
+ <div class="w-100 pb-5">
+ <main id="main" role="main" class="content">
+ <div class="container">
+	};
+
+   $HEADER_DONE='1';
+
+   print qq{
+    <p></p>
+    <div class="redbox">*** ATTENTION : vous êtes sur une version de TEST ***</div>
+   } if $DEBUG;
+   
+   print qq{
+   	<p></p>
+   	<table width="100%" border="0" cellpadding="2" cellspacing="0">
+   	 <tr>
+   	   <td valign="top">
+<!--
+   	   <center><img src="/.icons/res.jpg"></center>
+-->
+   };
+}
+
+#--------#
+sub res_header {
+
+	 return &res_header_NEW() if $WEB2018;
+	 
+   return if $HEADER_DONE;
+
+   print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
+
+	 if (	$pathinfo =~ /getUserAccreds/ ) {
+	 	$HEADER_DONE = '1';
+	 	return;
+	 }
 
    print qq{<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.1//EN" "https://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
 	<html xmlns="https://www.w3.org/1999/xhtml"> 
 	<head> 
 	 <link href="https://www.epfl.ch/css/epfl.css" media="all" rel="stylesheet" type="text/css" /> 
 	 <link rel="stylesheet" href="/absresv2.css">
+	 <script src="/absresv2.js" 		 type="text/javascript"></script>
 	 <script src="/CalendarPopup.js" type="text/javascript"></script>
 	</head>
 
@@ -4657,21 +4882,20 @@ sub load_dinfo {
   my $sth = $db_dinfo->query($sql);
   while (my ($sciper, $nom_acc, $prenom_acc, $nom_usuel, $prenom_usuel, $sigle, $id_unite, $addrlog, $ordre) = $sth->fetchrow) {
   	next unless $sciper;
-	my $nom    = $nom_usuel    ? $nom_usuel    : $nom_acc ;
-	my $prenom = $prenom_usuel ? $prenom_usuel : $prenom_acc ;
+		my $nom    = $nom_usuel    ? $nom_usuel    : $nom_acc ;
+		my $prenom = $prenom_usuel ? $prenom_usuel : $prenom_acc ;
 
-	$allUnitsUsers{$sigle}->{$sciper} = 1;
-	$allUsersUnits{$sciper}->{$sigle} = 1;
-	$dinfo{$sciper}	= {
-		nom			=> $nom,
-  		prenom 		=> $prenom,
-  		email 		=> $addrlog,
-	};
+		$allUnitsUsers{$id_unite}->{$sciper} = 1;
+		$allUnitsUsersBySigle{$sigle}->{$sciper} = 1;
+		$dinfo{$sciper}	= {
+			nom			=> $nom,
+			prenom 	=> $prenom,
+			email 	=> $addrlog,
+		};
 
-	if (defined $dinfo{$sciper}) {
-		$dinfo{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
-	}
-
+		if (defined $dinfo{$sciper}) {
+			$dinfo{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
+		}
   }
 
 }
@@ -4897,4 +5121,21 @@ sub genrandomkey {
   if (sysread (RND, $rand, $len) != $len) { die "Unable to read random bytes : $!"; }
   close (RND);
   return $rand;
+}
+
+#_________________
+sub getUserAccreds {
+	my $sciper = $CONTENTS{sciper};
+warn "--> getUserAccreds : $sciper\n";
+	return unless $sciper;
+	getUserData ($sciper) unless defined $dinfo{$sciper}->{accreds};
+	my $rettxt = qq{<select name="unite" >};
+	foreach my $unit (keys %{$dinfo{$sciper}->{accreds}}) {
+		next unless $unit;
+warn "  unit=$unit, sigle=$dinfo{$sciper}->{accreds}->{$unit}->{sigle}\n";
+		$rettxt .= qq{<option value="">$dinfo{$sciper}->{accreds}->{$unit}->{sigle}</option>};
+	}
+	$rettxt .= qq{</select>};
+	print $rettxt;
+	exit;
 }

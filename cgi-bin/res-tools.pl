@@ -14,6 +14,7 @@ use Crypt::RC4;
 use Crypt::GCM;
 use Crypt::Rijndael;
 use Cadi::CadiDB;
+use Cadi::Accreds;
 
 # ----------- constantes communes -----------------
 $thescript  	= $ENV{'SCRIPT_NAME'};
@@ -90,6 +91,8 @@ $intercar 	= 10;
 
 use Net::LDAP;
 $ldap  = Net::LDAP->new('ldap.epfl.ch') or erreur ("new LDAP : $!");
+
+my $Accreds  = new Cadi::Accreds ();
 
 #_____________
 sub loadargs {
@@ -699,25 +702,30 @@ sub getObjRes {
 
   my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
   $sth->execute (($d1, $d2, $objID)) or die "database fatal error : execute : $DBI::errstr";
-#warn "--> getObjRes : ($d1, $d2, $objID)\n";
   while (my $data = $sth->fetchrow_hashref) {
-	my $item = {
-		res_id	=> $data->{id},
-		nom		=> $data->{nom},
-		obj_id	=> $data->{obj_id},
-		sciper	=> $data->{sciper},
-		periodic=> $data->{periodic},
-		jour	=> $data->{jour},
-		date	=> $data->{date},
-		datedeb=> $data->{datedeb},
-		datefin	 => $data->{datefin},
-		hdeb	=> $data->{hdeb},
-		hfin	=> $data->{hfin},
-		unite	=> $data->{unite},
-		pool	=> $data->{pool},
-	};
-	push @rsrv, $item;
-#warn "--> getObjRes : $data->{nom}, $data->{hdeb}, $data->{hfin}, redid=$data->{id}\n";
+
+		unless ($data->{unite}) {
+			my @accreds = sort {$a->{ordre} <=> $b->{ordre}} $Accreds->getAccreds ($data->{sciper});
+			$data->{unite} = $accreds[0]->{unite};
+		}
+
+		my $item = {
+			res_id	=> $data->{id},
+			nom			=> $data->{nom},
+			obj_id	=> $data->{obj_id},
+			sciper	=> $data->{sciper},
+			periodic=> $data->{periodic},
+			jour		=> $data->{jour},
+			date		=> $data->{date},
+			datedeb	=> $data->{datedeb},
+			datefin	=> $data->{datefin},
+			hdeb		=> $data->{hdeb},
+			hfin		=> $data->{hfin},
+			unite		=> $data->{unite},
+			pool		=> $data->{pool},
+		};
+		push @rsrv, $item;
+#warn "--> getObjRes : $data->{unite}, $data->{nom}, $data->{hdeb}, $data->{hfin}, redid=$data->{id}\n";
   }
   $sth->finish;
   
@@ -945,19 +953,20 @@ sub getUserData {
   my $sth = $db_dinfo->query($sql);
   while (my ($sciper, $nom_acc, $prenom_acc, $nom_usuel, $prenom_usuel, $addrlog, $ordre, $id_unite, $sigle) = $sth->fetchrow) {
   	next unless $sciper;
-	my $nom    = $nom_usuel    ? $nom_usuel    : $nom_acc ;
-	my $prenom = $prenom_usuel ? $prenom_usuel : $prenom_acc ;
+		my $nom    = $nom_usuel    ? $nom_usuel    : $nom_acc ;
+		my $prenom = $prenom_usuel ? $prenom_usuel : $prenom_acc ;
 
-	$allUnitsUsers{$sigle}->{$sciper} = 1;
-	$allUsersUnits{$sciper}->{$sigle} = 1;
-	$dinfo{$sciper}	= {
-		nom			=> $nom,
-  		prenom 		=> $prenom,
-  		email 		=> $addrlog,
-	} unless defined $dinfo{$sciper};
-	if (defined $dinfo{$sciper}) {
-		$dinfo{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
-	}
+#		$allUnitsUsers{$sigle}->{$sciper} = 1;
+		$allUnitsUsers{$id_unite}->{$sciper} = 1;
+#		$allUsersUnits{$sciper}->{$sigle} = 1;
+		$dinfo{$sciper}	= {
+			nom			=> $nom,
+			prenom 	=> $prenom,
+			email 	=> $addrlog,
+		} unless defined $dinfo{$sciper};
+		if (defined $dinfo{$sciper}) {
+			$dinfo{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
+		}
   }
 
 }
