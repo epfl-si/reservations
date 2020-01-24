@@ -14,110 +14,92 @@ use strict;
 use lib '/opt/dinfo/lib/perl';
 
 use CGI;
-use Net::LDAPS;
-use Mail::Sendmail;
-
 use Cadi::CadiDB;
 use Cadi::WSUtils;
 
-my $pi = $ENV {PATH_INFO};
+my $pi 			= $ENV {PATH_INFO};
+my $DEBUG		= -f '/opt/dinfo/etc/MASTER' ? 0 : 1;
+my $verbose = $DEBUG;
 
 warn "--> start probe from $ENV{REMOTE_ADDR} : pathinfo=$pi\n";
 
 my $config_items = {
-		accreddb => { active => '1', critical => 'true', label => 'mysql accred/dinfo db access',},
-		resdb		 => { active => '1', critical => 'true', label => 'mysql reservations db access',},
+		accreddb  => { active => '1', critical => 'true',  label => 'mysql accred/dinfo db access',},
+		resdb		  => { active => '1', critical => 'true',  label => 'mysql reservations db access',},
 };
+my $q = CGI->new; 
 
 my $probe ;
    $probe->{status} = 'ok';
 
-my $sciper = '100000';
-
-if ( $pi =~ /usage/ ) {
-	my $return = {  
-		status => 'ok', 
-		usage  => qq{https://$ENV{SERVER_NAME}/probe - returns status : ok | ko 
-		},
-	} ;
-	Cadi::WSUtils::json_response ( { probe => $return, } );
-	exit;
-}	
-
+my $metrics;
+my $line = $DEBUG ? 'test' : 'prod';
 foreach my $key ( keys %$config_items ) {
 	my $item = $config_items->{$key};
 	next unless $item->{active};
 
 	$probe->{$key}->{status} = 'ko';
 
-	if ( $key eq 'resdb' ) {
-		my $dbh = new Cadi::CadiDB (
-			dbname => 'reservations',
-			 trace => 1,
-		) ;
-		
-		if ( $dbh ) {
-			my $sql = qq{SELECT * FROM reservations.obj LIMIT 0, 10};
-			my $sth = $dbh->prepare( $sql) ;
+	my $sql;
+	my $dbname;
+	if ( $key eq 'bottindb' ) {
+		$dbname = 'bottin';
+		$sql = qq{SELECT * from bottin.annuaire_persphones LIMIT 0, 1};
+	} else {
+		$dbname = 'dinfo';
+		$sql = qq{SELECT * from dinfo.sciper LIMIT 0, 1};
+	}
+	my $dbh = new Cadi::CadiDB (
+		dbname => $dbname,
+		 trace => 1,
+	) ;
+	
+	if ( $dbh ) {
+		my $sth = $dbh->prepare( $sql) or die "**ERR PREPARE $key";
+		if ($sth) {
+			if($sth->execute ()) {
+				$probe->{items}->{$key}->{status} = 'ok';
+			} else {
+			}
+		}
+	}		
 
-			if ($sth) {
-				$sth->execute () ;
-				my $sciper = $sth->fetchrow;
-				$probe->{$key}->{action} = "SELECT * FROM reservations.obj";
-				if ( $sciper eq $sciper ) {
-					$probe->{$key}->{status} = 'ok';
-				} else {
-					$probe->{$key}->{status} = 'ko';
-				}
-			}
-		}
-	}
-	if ( $key eq 'accreddb' ) {
-		my $dbh = new Cadi::CadiDB (
-			dbname => 'dinfo',
-			 trace => 1,
-			utf8 => 1,
-		) ;
-		if ( $dbh ) {
-			my $sql = qq{SELECT sciper FROM dinfo.sciper where sciper=$sciper LIMIT 0, 10};
-			my $sth = $dbh->prepare( $sql) ;
-			if ($sth) {
-				$sth->execute () ;
-				my $sciper = $sth->fetchrow;
-				$probe->{$key}->{action} = "get sciper $sciper from dinfo.sciper";
-				if ( $sciper eq $sciper ) {
-					$probe->{$key}->{status} = 'ok';
-				} else {
-					$probe->{$key}->{status} = 'ko';
-				}
-			}
-		}
-	}
-	if ( $key eq 'translate' ) {
-		my $text_fr	= qq{Crevettes sauvages au pesto d'ail des ours};
-		my $text_en	= rest_tools::translate($text_fr);
-		$probe->{$key}->{status} = $text_en ? 'ok' : 'ko';
-		$probe->{$key}->{action} = "google translate : $text_fr => $text_en";
-	}
-			
-	$probe->{$key}->{label} 		= $item->{label};
+warn "    probe $key : status=$probe->{items}->{$key}->{status}\n" if $verbose;
+	my $item_status = $probe->{items}->{$key}->{status} eq 'ok' ? '1' : '0';
+	$metrics .= qq{reservations_status{component="$key", critical="$item->{critical}", line="$line"} $item_status\n};
+
+	$probe->{$key}->{label} 	 = $item->{label};
 	$probe->{$key}->{critical} = $item->{critical};
-
-	unless ( $probe->{$key}->{status} eq 'ok' ) {
-		$probe->{status} = $item->{critical} eq 'true' ? 'ko' : 'warning';
+	unless ( $probe->{items}->{$key}->{status} eq 'ok' ) {
+		$probe->{status} = $item->{critical} ? 'ko' : 'warning';
 	}
 }
 
-if ( $probe->{status} ne 'ko' ) {
-	print "Status: 200 OK\r\n";
-} else {
+warn "--> probe : $probe->{status}\n" if $verbose;
+
+	if ( $q->param('metrics') ) {
+		my $probe_status = $probe->{status} eq 'ko' ? '0' : '1';
+		$metrics = qq{# HELP reservations_status service status: 1=OK, 0=KO
+# TYPE reservations_status gauge
+reservations_status{component="global", line="$line"} $probe_status
+$metrics};
+		print "Content-Type: text\r\n\r\n";
+		print $metrics ;
+		exit;
+	}
+	
+	if ( $probe->{status} ne 'ko' ) {
+		print "Status: 200 OK\r\n";
+	} else {
 		print "Status: 503 Service Unavailable\r\n";
-}
+	}
+		print "Content-Type: text\r\n\r\n";
+	exit;
 
-if ( $pi =~ /verbose/ ) {
-	Cadi::WSUtils::json_response ( $probe );
-} else {
-	print "Content-Type: text/html\r\n\r\n";
-}
+	if ( $q->param('verbose') ) {
+		Cadi::WSUtils::json_response ( $probe );
+	} else {
+		print "Content-Type: text/html\r\n\r\n";
+	}
 
-exit;
+	exit;
