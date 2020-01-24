@@ -77,6 +77,40 @@ RUN useradd -m -s /bin/bash -G apache,adm dinfo && \
     echo "dinfo:dinfo" | sudo chpasswd
 
 ################################################################################
+# Perl deps (DBD::Oracle, Tequila, ...)
+################################################################################
+RUN mkdir -p /opt/oracle && \
+    mkdir -p /opt/dinfo/lib/perl/Accred && \
+    mkdir -p /opt/dinfo/lib/perl/Cadi && \
+    mkdir -p /opt/dinfo/lib/perl/Tequila && \
+    mkdir -p /opt/dinfo/etc && \
+    chown -R dinfo:dinfo /opt/dinfo
+
+# FIXME: from cpanfile ?
+RUN cpanm --notest \
+          Apache::DBI \
+          JSON \
+          IO::Socket::SSL \
+          IO::Socket::INET \
+          Crypt::Rijndael \
+          Crypt::GCM \
+          Net::LDAP \
+          Crypt::RC4 \
+          Plack::Handler::Apache2 \
+          Net::IP \
+          DBD::mysql \
+          GD::Simple \
+          Mail::Sendmail \
+          Date::Calc \
+          CGI \
+          local::lib
+
+# Config files
+COPY ./conf/docker/dbs.conf /home/dinfo
+COPY ./conf/docker/tequila.conf /home/dinfo
+COPY ./conf/docker/25-reservations.epfl.ch.conf /home/dinfo
+
+################################################################################
 # Vhost
 ################################################################################
 RUN mkdir -p /var/www/vhosts/reservations.epfl.ch/cgi-bin && \
@@ -85,7 +119,8 @@ RUN mkdir -p /var/www/vhosts/reservations.epfl.ch/cgi-bin && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/htdocs/styles && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/htdocs/images && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/logs && \
-    mkdir -p /var/www/vhosts/reservations.epfl.ch/private/Tequila/Sessions
+    mkdir -p /var/www/vhosts/reservations.epfl.ch/private/Tequila/Sessions && \
+    mkdir -p /var/www/vhosts/reservations.epfl.ch/private/etc
 
 RUN chown -R apache:dinfo /var/www/vhosts/reservations.epfl.ch/htdocs && \
     chown -R apache:apache /var/www/vhosts/reservations.epfl.ch/logs && \
@@ -94,6 +129,7 @@ RUN chown -R apache:dinfo /var/www/vhosts/reservations.epfl.ch/htdocs && \
     chmod g+w /var/www/vhosts/reservations.epfl.ch/private
 
 COPY ./conf/reservations.conf /var/www/vhosts/reservations.epfl.ch/conf/reservations.conf
+COPY ./conf/access_params /var/www/vhosts/reservations.epfl.ch/private/etc/access_params
 
 WORKDIR /var/www/vhosts/reservations.epfl.ch
 
@@ -129,36 +165,6 @@ RUN echo "umask 0002" >> /etc/apache2/envvars && \
     a2dissite default-ssl.conf && \
     a2ensite 25-reservations.epfl.ch.conf
 
-################################################################################
-# Perl deps (DBD::Oracle, Tequila, ...)
-################################################################################
-RUN mkdir -p /opt/oracle && \
-    mkdir -p /opt/dinfo/lib/perl/Accred && \
-    mkdir -p /opt/dinfo/lib/perl/Cadi && \
-    mkdir -p /opt/dinfo/lib/perl/Tequila && \
-    mkdir -p /opt/dinfo/etc && \
-    chown -R dinfo:dinfo /opt/dinfo
-
-# FIXME: from cpanfile ?
-RUN cpanm --notest \
-          Apache::DBI \
-          JSON \
-          IO::Socket::SSL \
-          IO::Socket::INET \
-          Crypt::Rijndael \
-          Crypt::GCM \
-          Net::LDAP \
-          Crypt::RC4 \
-          Plack::Handler::Apache2 \
-          Net::IP \
-          DBD::mysql \
-          GD::Simple \
-          local::lib
-
-# Config files
-COPY ./conf/docker/dbs.conf /home/dinfo
-COPY ./conf/docker/tequila.conf /home/dinfo
-COPY ./conf/docker/25-reservations.epfl.ch.conf /home/dinfo
 
 ################################################################################
 # Bash
@@ -171,8 +177,10 @@ RUN echo "alias ll='ls -al'" >> /home/dinfo/.bashrc
 # Libraries
 ################################################################################
 COPY ./cadi-libs/Cadi/. /opt/dinfo/lib/perl/Cadi/
+COPY ./accred-libs/Accred/. /opt/dinfo/lib/perl/Accred/
 COPY ./tequila-epfl/lib/Tequila/. /opt/dinfo/lib/perl/Tequila/
 COPY ./tequila-perl-client/Tequila/Client.pm /opt/dinfo/lib/perl/Tequila/Client.pm
+COPY ./cgi-bin/res-tools.pl /opt/dinfo/lib/perl/res-tools.pl
 
 ################################################################################
 # Copy app

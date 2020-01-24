@@ -7,3 +7,6 @@
 [submodule "tequila-perl-client"]
 	path = tequila-perl-client
 	url = ssh://git@c4science.ch/source/tequila-perl-client.git
+[submodule "accred-libs"]
+	path = accred-libs
+	url = ssh://git@c4science.ch/diffusion/2517/accred-libs.git
