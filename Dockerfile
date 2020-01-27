@@ -108,6 +108,7 @@ RUN cpanm --notest \
 # Config files
 COPY ./conf/docker/dbs.conf /home/dinfo
 COPY ./conf/docker/tequila.conf /home/dinfo
+RUN touch /etc/tequila.conf && chown dinfo:dinfo /etc/tequila.conf
 COPY ./conf/docker/25-reservations.epfl.ch.conf /home/dinfo
 
 ################################################################################
@@ -121,12 +122,6 @@ RUN mkdir -p /var/www/vhosts/reservations.epfl.ch/cgi-bin && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/logs && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/private/Tequila/Sessions && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/private/etc
-
-RUN chown -R apache:dinfo /var/www/vhosts/reservations.epfl.ch/htdocs && \
-    chown -R apache:apache /var/www/vhosts/reservations.epfl.ch/logs && \
-    chown -R apache:apache /var/www/vhosts/reservations.epfl.ch/private/Tequila/Sessions && \
-    chown apache:dinfo /var/www/vhosts/reservations.epfl.ch/private && \
-    chmod g+w /var/www/vhosts/reservations.epfl.ch/private
 
 COPY ./conf/reservations.conf /var/www/vhosts/reservations.epfl.ch/conf/reservations.conf
 COPY ./conf/access_params /var/www/vhosts/reservations.epfl.ch/private/etc/access_params
@@ -187,7 +182,13 @@ COPY ./cgi-bin/res-tools.pl /opt/dinfo/lib/perl/res-tools.pl
 ################################################################################
 COPY ./cgi-bin/. /var/www/vhosts/reservations.epfl.ch/cgi-bin/
 COPY ./htdocs/. /var/www/vhosts/reservations.epfl.ch/htdocs/
-RUN chown -R dinfo:dinfo /var/www/vhosts/reservations.epfl.ch
+
+RUN chown -R dinfo:dinfo /var/www/vhosts/reservations.epfl.ch && \
+    chown -R apache:dinfo /var/www/vhosts/reservations.epfl.ch/htdocs && \
+    chown -R apache:apache /var/www/vhosts/reservations.epfl.ch/logs && \
+    chown -R apache:apache /var/www/vhosts/reservations.epfl.ch/private/Tequila/Sessions && \
+    chown apache:dinfo /var/www/vhosts/reservations.epfl.ch/private && \
+    chmod g+w /var/www/vhosts/reservations.epfl.ch/private
 
 COPY ./conf/docker/docker-entrypoint.sh /home/dinfo/
 RUN chmod a+x /home/dinfo/docker-entrypoint.sh
