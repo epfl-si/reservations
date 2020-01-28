@@ -39,6 +39,8 @@ services:
       - DATABASE_RESERVATIONS_PWD=reservations
       - TEQUILA_HOST=test-tequila.epfl.ch
       - MOCK_ORACLE=1
+      - RC4_KEY=toto
+      - AES_KEY=toto
 
   mysql_reservations:
     image: mysql:5.5

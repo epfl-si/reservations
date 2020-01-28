@@ -110,6 +110,7 @@ COPY ./conf/docker/dbs.conf /home/dinfo
 COPY ./conf/docker/tequila.conf /home/dinfo
 RUN touch /etc/tequila.conf && chown dinfo:dinfo /etc/tequila.conf
 COPY ./conf/docker/25-reservations.epfl.ch.conf /home/dinfo
+COPY ./conf/docker/access_params /home/dinfo
 
 ################################################################################
 # Vhost
@@ -124,7 +125,7 @@ RUN mkdir -p /var/www/vhosts/reservations.epfl.ch/cgi-bin && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/private/etc
 
 COPY ./conf/reservations.conf /var/www/vhosts/reservations.epfl.ch/conf/reservations.conf
-COPY ./conf/access_params /var/www/vhosts/reservations.epfl.ch/private/etc/access_params
+RUN touch /var/www/vhosts/reservations.epfl.ch/private/etc/access_params
 
 WORKDIR /var/www/vhosts/reservations.epfl.ch
 

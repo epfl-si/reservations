@@ -1,0 +1,3 @@
+$superuser = 'cionca';
+$rc4key    = 'RC4_KEY';
+$aeskey    = 'AES_KEY';
