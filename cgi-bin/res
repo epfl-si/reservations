@@ -38,7 +38,7 @@ $URLres				= "${RES_HOME}/cgi-bin/res";
 $URLplan			= "https://plan.epfl.ch/";
 $support			= '1234@epfl.ch';
 $generic_mail	= 'noreply@epfl.ch';
-$TITLE      	= 'R�servations en ligne ';
+$TITLE      	= 'Réservations en ligne ';
 my $mapsdir		=  qq{${abs_path}htdocs/.maps/};
 
 @color_list = (
@@ -106,7 +106,7 @@ use vars qw( %allObjects %allUnitsUsers @allunits %userObjects %objUsers $res %d
  	caller => '104782', 
  );
 
-my $LAST_DATE  = get_next_n_day($crt_date, 730);	# - res max 2 ans � l'avance
+my $LAST_DATE  = get_next_n_day($crt_date, 730);	# - res max 2 ans à l'avance
 
 list_res ()  if $pathinfo =~ /^\/list_res/;
 
@@ -170,7 +170,7 @@ sub initData {
 	$MAINTENANCE = '';
 	if ($MAINTENANCE) {
 		unless ($ENV{REMOTE_ADDR} eq '128.178.1.146') {
-			erreur ("Le service de gestion des r�servations est en maintenance");
+			erreur ("Le service de gestion des réservations est en maintenance");
 		}
 	}
 
@@ -224,11 +224,11 @@ sub pool_dispo {
 
 	my $date1 	= check_date($CONTENTS{date1});
 	my $date2 	= check_date($CONTENTS{date2});
-	erreur ("date d�but apr�s date de fin") if $date1 gt $date2;
+	erreur ("date début après date de fin") if $date1 gt $date2;
 	erreur ("identificateur de ressource absent") unless $CONTENTS{objID};
 	my $objID = $CONTENTS{objID};
     my $obj 	= $allObjects{$objID}->{objdata};
-    erreur("ressource pas trouv�e") unless $obj;
+    erreur("ressource pas trouvée") unless $obj;
 	my @crt_res = getAllRes ($date1, $date2, $objID);
 
 	print qq{
@@ -237,9 +237,9 @@ sub pool_dispo {
 	<b>Nom :</b> $obj->{nom}<br>
 	<b>Description : </b>$obj->{descr}<br>
 	<b>Taille pool : </b>$obj->{pool} objets<br>
-	Nb max d'objets par r�servation : $obj->{max_pool}<br>
+	Nb max d'objets par réservation : $obj->{max_pool}<br>
 	</div>
-	<h4>Disponibilit� par date et heure</h4>
+	<h4>Disponibilité par date et heure</h4>
 	};
 	
 	print qq{<div style="width: 600px; border-bottom: 1px solid #aaaaaa; margin: 4px; ">
@@ -343,7 +343,7 @@ sub list_res {
    
    print qq{
    	<form action="$URLres/list_res?objects=$CONTENTS{objects}" name="form" method="post">
-   	semaine : <a href=$URLres/list_res?objects=$CONTENTS{objects}&date=$prev_week>pr�c�dente</a> | <a href=$URLres/list_res?objects=$CONTENTS{objects}&date=$next_week>suivante</a> - choisir une date :
+   	semaine : <a href=$URLres/list_res?objects=$CONTENTS{objects}&date=$prev_week>précédente</a> | <a href=$URLres/list_res?objects=$CONTENTS{objects}&date=$next_week>suivante</a> - choisir une date :
 		<input name="date" id="date" size="10" value="$date">
 		<a href="#" onClick="cal.select(document.getElementById('date'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1">
 		<img src="/.icons/cal.gif" border="0"></a>
@@ -366,7 +366,7 @@ sub auth {
 
   unless ($tequila) {
     $tequila = new Tequila::Client (
-	  service    => 'R�servations',
+	  service    => 'Réservations',
 	  request    => [ 'name','firstname','uniqueid','where' ],
 	  identities => 'any',
 	  urlaccess  => "https://$ENV{SERVER_NAME}$ENV{REQUEST_URI}?$ENV{QUERY_STRING}",
@@ -551,7 +551,7 @@ sub resAccessAllowed {
   return 1 if $Admins{$CONTENTS{sciper}}->{$obj_id};	# - admin
 
 #  if ($userObjects{$obj_id}->{objdata}->{disp} eq 'd' or $userObjects{$obj_id}->{objdata}->{disp} eq 'r') {
-	if ($userObjects{$obj_id}->{objdata}->{datedeb} and $userObjects{$obj_id}->{objdata}->{datedeb}  ne '0000-00-00') {	#	- indisp pr�sente
+	if ($userObjects{$obj_id}->{objdata}->{datedeb} and $userObjects{$obj_id}->{objdata}->{datedeb}  ne '0000-00-00') {	#	- indisp présente
 		return 0 if $res->{datedeb} ge $userObjects{$obj_id}->{objdata}->{datedeb} and $res->{datedeb} le $userObjects{$obj_id}->{objdata}->{datefin};
 		return 0 if $res->{datefin} ge $userObjects{$obj_id}->{objdata}->{datedeb} and $res->{datefin} le $userObjects{$obj_id}->{objdata}->{datefin};
 		return 0 if $res->{datedeb} le $userObjects{$obj_id}->{objdata}->{datedeb} and $res->{datefin} ge $userObjects{$obj_id}->{objdata}->{datefin};
@@ -647,13 +647,13 @@ sub addUser {
   my $msg = qq{
   Bonjour,
   
-Votre acc�s � la gestion des r�servations  en tant qu'$droitTxt pour l'objet : $userObjects{$obj_id}->{objdata}->{nom} est ouvert. Cette op�ration a �t� effectu�e par $dinfo{$CONTENTS{sciper}}->{prenom} $dinfo{$CONTENTS{sciper}}->{nom}. Veuillez le contacter pour plus de d�tails.
+Votre accès à la gestion des réservations  en tant qu'$droitTxt pour l'objet : $userObjects{$obj_id}->{objdata}->{nom} est ouvert. Cette opération a été effectuée par $dinfo{$CONTENTS{sciper}}->{prenom} $dinfo{$CONTENTS{sciper}}->{nom}. Veuillez le contacter pour plus de détails.
 
-L'acc�s � l'application (authentification Tequila requise) : $URLres
+L'accès à l'application (authentification Tequila requise) : $URLres
 
-Votre syst�me de gestion des r�servations
+Votre système de gestion des réservations
   };
-  my $subj = qq{gestion des r�servations : ouverture du compte};
+  my $subj = qq{gestion des réservations : ouverture du compte};
   sendMail ($dinfo{$sciper}->{email}, $subj, $msg) if $dinfo{$sciper}->{email} and $NOTIFYUSER;
 
   logger ($obj_id, '', qq{new user $sciper [droits=$droit, mail=$mail] par $CONTENTS{sciper}}) ; 
@@ -697,13 +697,13 @@ sub majUser {
   my $msg = qq{
   Bonjour,
   
-Votre acc�s � la gestion des r�servations  en tant qu'$droitTxt pour l'objet : $userObjects{$obj_id}->{objdata}->{nom} a �t� modifi�. Cette op�ration a �t� effectu�e par $dinfo{$CONTENTS{sciper}}->{prenom} $dinfo{$CONTENTS{sciper}}->{nom}. Veuillez le contacter pour plus de d�tails.
+Votre accès à la gestion des réservations  en tant qu'$droitTxt pour l'objet : $userObjects{$obj_id}->{objdata}->{nom} a été modifié. Cette opération a été effectuée par $dinfo{$CONTENTS{sciper}}->{prenom} $dinfo{$CONTENTS{sciper}}->{nom}. Veuillez le contacter pour plus de détails.
 
-L'acc�s � l'application (authentification Tequila requise) : $URLres
+L'accès à l'application (authentification Tequila requise) : $URLres
 
-Votre syst�me de gestion des r�servations
+Votre système de gestion des réservations
   };
-  my $subj = qq{gestion des r�servations : mise � jour du compte};
+  my $subj = qq{gestion des réservations : mise à jour du compte};
   sendMail ($dinfo{$sciper}->{email}, $subj, $msg) if $dinfo{$sciper}->{email}  and $NOTIFYUSER;
 
   logger ($obj_id, '', qq{maj user $sciper, $obj_id : [droits=$droit, mail=$mail] par $CONTENTS{sciper}}) ; 
@@ -728,12 +728,12 @@ sub delUser {
   my $msg = qq{
   Bonjour,
   
-Votre acc�s � la gestion des r�servations pour la ressource : $userObjects{$objID}->{objdata}->{nom} a �t� annul� par $dinfo{$CONTENTS{sciper}}->{prenom} $dinfo{$CONTENTS{sciper}}->{nom}.
-Veuillez le contacter pour plus de d�tails.
+Votre accès à la gestion des réservations pour la ressource : $userObjects{$objID}->{objdata}->{nom} a été annulé par $dinfo{$CONTENTS{sciper}}->{prenom} $dinfo{$CONTENTS{sciper}}->{nom}.
+Veuillez le contacter pour plus de détails.
 
-Votre syst�me de gestion des r�servations
+Votre système de gestion des réservations
   };
-  my $subj = qq{gestion des r�servations : annulation des droits d'acc�s};
+  my $subj = qq{gestion des réservations : annulation des droits d'accès};
   sendMail ($dinfo{$sciper}->{email}, $subj, $msg) if $dinfo{$sciper}->{email} and $NOTIFYUSER;
   logger ($objID, '', qq{del user $sciper pour obj : $objID par $CONTENTS{sciper}}) ; 
 
@@ -766,7 +766,7 @@ sub majObject {
 		$sql = qq{select * from obj where id = ?};
 		$sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
 		$sth->execute (($obj_id)) or die "database fatal error : execute : $DBI::errstr";
-		erreur ("ressource pas trouv�e (id=$obj_id, nom=$nom)") unless $sth->fetchrow_hashref;
+		erreur ("ressource pas trouvée (id=$obj_id, nom=$nom)") unless $sth->fetchrow_hashref;
 
 		$sql = qq{update obj set 
 			nom=?,
@@ -822,18 +822,18 @@ sub majObject {
 			});
 
 	}
-	erreur ("erreur mise � jour ressource : veuillez contacter le support", 1) unless $obj_id;
+	erreur ("erreur mise à jour ressource : veuillez contacter le support", 1) unless $obj_id;
 
 	my $msg = qq{
 	Bonjour,
 	
-La ressource : $nom a �t� modifi�e par : $dinfo{$CONTENTS{sciper}}->{nom} $dinfo{$CONTENTS{sciper}}->{prenom}.
+La ressource : $nom a été modifiée par : $dinfo{$CONTENTS{sciper}}->{nom} $dinfo{$CONTENTS{sciper}}->{prenom}.
 
-L'acc�s � l'application (authentification Gaspar/Tequila requise) : $URLres
-Pour ne plus recevoir ces messages d�sactiver l'option "Mail" depuis la page 
+L'accès à l'application (authentification Gaspar/Tequila requise) : $URLres
+Pour ne plus recevoir ces messages désactiver l'option "Mail" depuis la page
 de "ressources".
 
-Votre syst�me de gestion des r�servations
+Votre système de gestion des réservations
 	};
 	notifyUsers ($obj_id, $msg);
 
@@ -846,7 +846,7 @@ sub delObject {
 	
 	my $objID 	= $item->{id};
 	erreur ("identification de la ressource absente") unless $objID;
-    erreur ("op�rations en acc�s r�serv�", 1) unless $Admins{$CONTENTS{sciper}}  or $superusers =~ /\b$CONTENTS{sciper}\b/;
+    erreur ("opérations en accès réservé", 1) unless $Admins{$CONTENTS{sciper}}  or $superusers =~ /\b$CONTENTS{sciper}\b/;
 	
 	my $nom 		= $item->{nom};
 	my $descr 	= $item->{descr};
@@ -877,7 +877,7 @@ sub delObject {
 	}
 	
 	my $msg = qq{
-		La ressource : $nom a �t� effac�e par : $dinfo{$CONTENTS{sciper}}->{nom} $dinfo{$CONTENTS{sciper}}->{prenom}.
+		La ressource : $nom a été effacée par : $dinfo{$CONTENTS{sciper}}->{nom} $dinfo{$CONTENTS{sciper}}->{prenom}.
 	};
 	notifyUsers ($objID, $msg);
 	
@@ -911,7 +911,7 @@ sub notifyUsers {
 	$mails =~ s/,$//;
 	
 	return unless $mails;
-	sendMail ($mails, "Gestion des r�servations ($userObjects{$objID}->{objdata}->{nom})", $msg) ;
+	sendMail ($mails, "Gestion des réservations ($userObjects{$objID}->{objdata}->{nom})", $msg) ;
 	
 }
 
@@ -934,7 +934,7 @@ sub addRes {
 	my $hfin 		= $res->{hfin};
 	my $unite 	= $res->{unite};
 	my $pool 		= $res->{pool};
-	erreur ("param�tres absents [sciper=$sciper, dates=@$dates,obj_id=$obj_id]") unless $sciper and $dates and $obj_id;
+	erreur ("paramètres absents [sciper=$sciper, dates=@$dates,obj_id=$obj_id]") unless $sciper and $dates and $obj_id;
 
 	my $sql = qq{
 	insert into res set 
@@ -972,26 +972,26 @@ sub addRes {
 	logger ($obj_id, $res_id, qq{new res : $nom : $CONTENTS{sciper} $unite [$userObjects{$obj_id}->{objdata}->{nom}, $periodic, $jour, $hdeb-$hfin]});
 
 	my $msg = qq{
-Nouvelle r�servation
+Nouvelle réservation
 
    Ressource : $userObjects{$obj_id}->{objdata}->{nom}
- R�serv� par : $dinfo{$CONTENTS{sciper}}->{nom}  $dinfo{$CONTENTS{sciper}}->{prenom}};
+ Réservé par : $dinfo{$CONTENTS{sciper}}->{nom}  $dinfo{$CONTENTS{sciper}}->{prenom}};
  	$msg .= qq{
-R�serv� pour : $dinfo{$sciper}->{nom}  $dinfo{$sciper}->{prenom}} if $CONTENTS{sciper} ne $sciper;
+Réservé pour : $dinfo{$sciper}->{nom}  $dinfo{$sciper}->{prenom}} if $CONTENTS{sciper} ne $sciper;
  	$msg .= qq{
    Nb objets : $pool
       Raison : $nom [ $descr ]
         Date : @$dates
- P�riodicit� : $periodic
+ Périodicité : $periodic
         Jour : $jour
- Heure D�but : $hdeb
+ Heure Début : $hdeb
    Heure Fin : $hfin
 
-L'acc�s � l'application (authentification Gaspar/Tequila requise) : $URLres
-Pour ne plus recevoir ces messages d�sactiver l'option "Mail" depuis la page 
+L'accès à l'application (authentification Gaspar/Tequila requise) : $URLres
+Pour ne plus recevoir ces messages déèsactiver l'option "Mail" depuis la page
 de "ressources".
 
-Votre syst�me de gestion des r�servations
+Votre système de gestion des réservations
 	};
 
 	notifyUsers($obj_id, $msg);
@@ -1007,7 +1007,7 @@ sub majRes {
 
     my $res_id = $res->{res_id};
     my %old_res = getRes ($res_id);
-	erreur ("r�servation pas trouv�e") unless scalar %old_res;
+	erreur ("réservation pas trouvée") unless scalar %old_res;
 
 	my $nom 		= $res->{nom};
 	my $obj_id 	= $res->{objID};
@@ -1022,7 +1022,7 @@ sub majRes {
 	my $hfin 		= $res->{hfin};
 	my $unite 	= $res->{unite};
 	my $pool 		= $res->{pool};
-	erreur ("param�tres absents [sciper=$sciper, dates=@$dates,obj_id=$obj_id]") unless $sciper and $dates and $obj_id;
+	erreur ("paramètres absents [sciper=$sciper, dates=@$dates,obj_id=$obj_id]") unless $sciper and $dates and $obj_id;
 
 	if ($CONTENTS{op} eq 'renew') {
 		# - del dates between date1 and date2
@@ -1072,26 +1072,26 @@ sub majRes {
 	logger ($obj_id, $res_id, qq{maj res : $nom : $CONTENTS{sciper} [$userObjects{$obj_id}->{objdata}->{nom},$periodic,$jour,$hdeb-$hfin]});
 
 	my $msg = qq{
-Mise � jour de r�servation
+Mise à jour de réservation
 
    Ressource : $userObjects{$obj_id}->{objdata}->{nom}
- Modifi� par : $dinfo{$CONTENTS{sciper}}->{nom} $dinfo{$CONTENTS{sciper}}->{prenom}};
+ Modifié par : $dinfo{$CONTENTS{sciper}}->{nom} $dinfo{$CONTENTS{sciper}}->{prenom}};
  	$msg .= qq{
-R�serv� pour : $dinfo{$sciper}->{nom}  $dinfo{$sciper}->{prenom}} if $CONTENTS{sciper} ne $sciper;
+Réservé pour : $dinfo{$sciper}->{nom}  $dinfo{$sciper}->{prenom}} if $CONTENTS{sciper} ne $sciper;
  	$msg .= qq{
       Raison : $nom [ $descr ]
    Nb objets : $pool
         Date : @$dates
- P�riodicit� : $periodic
+ Périodicité : $periodic
         Jour : $jour
- Heure D�but : $hdeb
+ Heure Début : $hdeb
    Heure Fin : $hfin
 
-L'acc�s � l'application (authentification Gaspar/Tequila requise) : $URLres
-Pour ne plus recevoir ces messages d�sactiver l'option "Mail" depuis la page 
+L'accès à l'application (authentification Gaspar/Tequila requise) : $URLres
+Pour ne plus recevoir ces messages désactiver l'option "Mail" depuis la page
 de "ressources".
 
-Votre syst�me de gestion des r�servations
+Votre système de gestion des réservations
 	};
 	notifyUsers($obj_id, $msg);
 
@@ -1104,7 +1104,7 @@ sub disp_res {
    my ($res_id, $noaction) = @_;
   
    $res_id = $CONTENTS{res_id} unless $res_id;
-   erreur ("identificateur de r�servation absent", 1) unless $res_id;
+   erreur ("identificateur de réservation absent", 1) unless $res_id;
 
    my %res 	 = getRes ($res_id);
    my $dates_txt;
@@ -1125,7 +1125,7 @@ sub disp_res {
    my $pool 	= $res{pool};
 
    print qq{
-   <h3>R�servation</h3>
+   <h3>Réservation</h3>
    <style>
    td { padding-left:5px;}
    </style>
@@ -1137,7 +1137,7 @@ sub disp_res {
    	<td align="right">Description :
    	<td>$allObjects{$res{obj_id}}->{objdata}->{descr}
    <tr>
-   	<td align="right" >Visibilit� des r�servations :
+   	<td align="right" >Visibilité des réservations :
    	   	<td>$visible
    <tr>
    };
@@ -1161,7 +1161,7 @@ sub disp_res {
    
    unless ($res{periodic} eq 'ponctuelle') {
 	   print qq{
-	   <tr><td align="right" width="100"><b>Date d�but :</b><td>}.rev_date($datedeb).qq{
+	   <tr><td align="right" width="100"><b>Date début :</b><td>}.rev_date($datedeb).qq{
 	   <tr><td align="right" width="100"><b>Date fin :</b><td>}.rev_date($datefin)
    }
    
@@ -1171,19 +1171,19 @@ sub disp_res {
    my $no_accred = '<span style="color: red;">(no accred)</span>' if $res{unite} && ! defined $allUnitsUsers{$res{unite}}->{$res{sciper}};
    print qq{
 	   <tr><td align="right" valign="top"><b>Dates :</b><td>$dates_txt
-	   <tr><td align="right"><b>Heure D�but :</b><td>$res{hdeb}
+	   <tr><td align="right"><b>Heure Début :</b><td>$res{hdeb}
 	   <tr><td align="right"><b>Heure Fin :</b><td>$res{hfin}
-	   <tr><td align="right"><b>R�serv� pour :</b><td>$doneby $no_accred
+	   <tr><td align="right"><b>Réservé pour :</b><td>$doneby $no_accred
 	};
-	print qq{<tr><td align="right"><b>Unit� :</b><td>$sigle} if $sigle;
+	print qq{<tr><td align="right"><b>Unité :</b><td>$sigle} if $sigle;
 	print qq{<tr><td align="right"><b>Nombre d'objets :</b><td>$pool} if $userObjects{$res{obj_id}}->{objdata}->{pool};
 	
 	print qq{
 	   <tr><td align="right"><b>Raison :</b><td>$res{nom}
-	   <tr><td align="right"><b>D�tails :</b><td>$res{descr}
+	   <tr><td align="right"><b>Détails :</b><td>$res{descr}
 	   </table>
    };
-   print "<p>(<i>r�servation d�clar�e ou modifi�e le : $res{maj}" if $res{maj};
+   print "<p>(<i>réservation déclarée ou modifiée le : $res{maj}" if $res{maj};
    print " par $modby</i>)</p>" if $res{maj_by};
 
   unless ($CONTENTS{op} eq 'ignore') {
@@ -1198,12 +1198,12 @@ sub disp_res {
 			print qq{<input type="button" style="border:1px solid red; margin:2px;background-color:yellow;" value="export vers agenda" OnClick="javascript:location.href='$URLres/ical?res_id=$res_id'">
 			-------------} ;
 			print qq{
-			<input type="button" value="annuler" OnClick="if (confirm('Annuler la r�servation ?')) {javascript:location.href='$URLres/mod_res?op=del&res_id=$res_id'}">
+			<input type="button" value="annuler" OnClick="if (confirm('Annuler la réservation ?')) {javascript:location.href='$URLres/mod_res?op=del&res_id=$res_id'}">
 		};
 		
 		if ($res{periodic} ne 'ponctuelle') {
 			print qq{<hr>
-			<em>Pour annuler une date d'un groupe p�riodique, cliquer sur <b>modifier</b> et d�-s�lectionner la date � enlever de la liste des dates du groupe.</em> 
+			<em>Pour annuler une date d'un groupe périodique, cliquer sur <b>modifier</b> et dé-sélectionner la date à enlever de la liste des dates du groupe.</em>
 			};		
 		}
 		
@@ -1334,7 +1334,7 @@ sub footpage {
 	if (isAuth ()) {
 	  print qq{
 		<div style="width:100%; float:left; background-color:#FDFA9A; border: 1px solid red; padding: 2px;">
-		<h4>nouvelle r�servation</h4>
+		<h4>nouvelle réservation</h4>
 		<script language="javascript">
 			function selChekd (id) {
 			var obj = document.getElementById(id);
@@ -1357,7 +1357,7 @@ sub footpage {
 		 <br>
 			<input type=radio name=mode value=0 checked> <b>ponctuelle</b><br>
 			<input type=radio name=mode value=1> <b>quotidienne</b><br>
-			<input type=radio name=mode value=2> <b>p�riodique</b><br>
+			<input type=radio name=mode value=2> <b>périodique</b><br>
 		  <br><input type=submit name=go value=continuer>
 		  </form>
 		  </div>
@@ -1393,19 +1393,19 @@ sub footpage {
 	if ($CONTENTS{sciper} and defined $Admins{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/) {
 		print qq{
 		<hr>
-		<b><a href="$thescript/extract">extraction des r�servations</a></b>
+		<b><a href="$thescript/extract">extraction des réservations</a></b>
 	   };
 	}
    
 	print qq{
     <hr>
-    <h4>acc�s</h4>
+    <h4>accès</h4>
     <ul style="margin-left: 15px; padding: 0;">
     <a href=$thescript?login=1>home</a><br>
 	};
 	print qq{
 	  	 <a href=$thescript/gestion?op=obj>ressources</a> <br>
-	  	 <a href=$thescript/gestion?op=res>r�servations</a> <br>
+	  	 <a href=$thescript/gestion?op=res>réservations</a> <br>
 	} if scalar keys %userObjects;
 
 	print qq{ <a href=$thescript/listcontacts>contact</a><br>};
@@ -1415,8 +1415,8 @@ sub footpage {
 		</ul>
     <hr>
 	<h4>FAQs</h4>
-	<li><a href=http://wiki.epfl.ch/resfaq#q2 target="_blank">comment avoir acc�s aux r�servations...</a>
-	<li><a href=http://wiki.epfl.ch/resfaq#q3 target="_blank">je re�ois une avalanche de messages...</a>
+	<li><a href=http://wiki.epfl.ch/resfaq#q2 target="_blank">comment avoir accès aux réservations...</a>
+	<li><a href=http://wiki.epfl.ch/resfaq#q3 target="_blank">je reçois une avalanche de messages...</a>
 	<br>[ <a href=http://wiki.epfl.ch/resfaq target="_blank">lire plus...</a> ]
 
   	<tr><td colspan="2">
@@ -1428,11 +1428,11 @@ sub footpage {
 
   print qq{
   	 <a href=$thescript/gestion?op=obj>ressources</a> |
-  	 <a href=$thescript/gestion?op=res>r�servations</a> |
+  	 <a href=$thescript/gestion?op=res>réservations</a> |
   } if scalar keys %userObjects;
  
   if (exists $dinfo{$CONTENTS{sciper}}) {
-	  print qq{- donn�es du }.&rev_date($crt_date);
+	  print qq{- données du }.&rev_date($crt_date);
 	  printf " %02d:%02d</small>", $hour, $min;
   }
   print qq{ 
@@ -1454,23 +1454,23 @@ sub main {
 		</div>
 	} if $news;
 		
-    print qq{<h2>Gestion des r�servations</h2>
+    print qq{<h2>Gestion des réservations</h2>
     };
     
     unless (keys %userObjects) {
     	print qq{
-    	La gestion des r�servations est un outil d'acc�s en ligne aux ressources partag�es par un groupe : salles des conf�rences, �quipement de laboratoire, appareils, etc.<br>
+    	La gestion des réservations est un outil d'accès en ligne aux ressources partagées par un groupe : salles des conférences, équipement de laboratoire, appareils, etc.<br>
     	
-    	<p>Vous pouvez retrouver l'objet ou la salle qui vous int�resse � travers la bo�te de recherche ci-contre et contacter ensuite un des administrateurs pour obtenir le droit de r�servation.
+    	<p>Vous pouvez retrouver l'objet ou la salle qui vous intéresse à travers la boîte de recherche ci-contre et contacter ensuite un des administrateurs pour obtenir le droit de réservation.
     	</p>
-    	<p>Si vous �tes enregistr� dans le syst�me, <a href=$thescript?login=1><b>effectuer la connexion</b></a> pour acc�der � vos ressources.</p>
-    	<p><a href=http://wiki.epfl.ch/resfaq>Plus de r�ponses sur la gestion des r�servations...</a></p>
+    	<p>Si vous êtes enregistré dans le système, <a href=$thescript?login=1><b>effectuer la connexion</b></a> pour accéder à vos ressources.</p>
+    	<p><a href=http://wiki.epfl.ch/resfaq>Plus de réponses sur la gestion des réservations...</a></p>
     	};
 		&footpage ;
     }
 
 	# - what's new
-	print qq{<a href=http://wiki.epfl.ch/resfaq/news target="_blank"><b>What's new : </b>acc�s aux donn�es de r�servation par web service (en d�veloppement)</a>
+	print qq{<a href=http://wiki.epfl.ch/resfaq/news target="_blank"><b>What's new : </b>accès aux données de réservation par web service (en développement)</a>
 	<hr>};
  
     checkDoRenew();
@@ -1478,9 +1478,9 @@ sub main {
     print qq{
    	<ul id="indented">
    	<li>consultations des <a href=$thescript/gestion?op=obj><b>ressources/salles</b></a> | 
-        <a href=$thescript/gestion?op=res><b>r�servations</b></a> |
+        <a href=$thescript/gestion?op=res><b>réservations</b></a> |
         <a href=$thescript/search?op=usr&nom_usr=$CONTENTS{sciper}><b>mes droits</b></a> </li><br>
-    <li> <b>graphiques des r�servations</b> (s�lection multiple possible)
+    <li> <b>graphiques des réservations</b> (sélection multiple possible)
     <ul id="indented">
    <form action=${thescript}/graph name=form method=POST>
    <b>salle/ressource :</b> };
@@ -1504,7 +1504,7 @@ sub main {
 
    my ($start_we, $end_we) = split (/\t/, &get_start_end_week($date));
    $end_we = &get_next_n_day($end_we,2);
-   print "<li>les r�servations de la <b>semaine du ".&rev_date($start_we,1)."</b> [ <a href=$thescript?date=".&get_next_n_day($start_we,7).">semaine suivante&gt;&gt;</a> ] | <b>graphiques</b> : [ <a href=$thescript/graph?objID=toutes&graph_type=W&date1=".&rev_date($start_we).">cette semaine</a> |
+   print "<li>les réservations de la <b>semaine du ".&rev_date($start_we,1)."</b> [ <a href=$thescript?date=".&get_next_n_day($start_we,7).">semaine suivante&gt;&gt;</a> ] | <b>graphiques</b> : [ <a href=$thescript/graph?objID=toutes&graph_type=W&date1=".&rev_date($start_we).">cette semaine</a> |
 	        <a href=$thescript/graph?objID=toutes&graph_type=W&date1=".&rev_date(&get_next_n_day($start_we,7)).">semaine suivante&gt;&gt;</a> ]";
 
    &listRes ($start_we, $end_we);
@@ -1545,15 +1545,15 @@ sub checkDoRenew {
 	
 	return unless scalar @resToActivate;
 	print qq{<hr>
-		<h3><img src="/.icons/new_small.gif" border="0"> r�servations p�riodiques � prolonger</h3>
+		<h3><img src="/.icons/new_small.gif" border="0"> réservations périodiques à prolonger</h3>
 		<ul>
 		<table width="90%" border="1" cellpadding="0" cellspacing="0">
 		<th>raison
 		<th>salle/objet
-		<th>p�riodicit�
+		<th>périodicité
 		<th>de
-		<th>�
-		<th>derni�re<br>r�servation
+		<th>à
+		<th>dernière<br>réservation
 		<th>action
 	};
 	foreach my $res (sort {$a->{obj_id} cmp $b->{obj_id}} @resToActivate) {
@@ -1574,7 +1574,7 @@ sub checkDoRenew {
 #__________________
 sub listobj {
 	
-    print qq{<h2 align=left>Toutes les ressources disponibles en r�servation</h2>   };
+    print qq{<h2 align=left>Toutes les ressources disponibles en réservation</h2>   };
     
     my $allObj = getAllObjects();
    
@@ -1583,9 +1583,9 @@ sub listobj {
 		<th class=header_cell style="min-width:70px;">Droits
 		<th class=header_cell style="min-width:70px;">Nom
 		<th class=header_cell style="min-width:200px;max-width:300px;">Description
-		<th class=header_cell>Ressource cach�e
-		<th class=header_cell>Visibilit� des r�servations
-		<th class=header_cell>Acc�s
+		<th class=header_cell>Ressource cachée
+		<th class=header_cell>Visibilité des réservations
+		<th class=header_cell>Accès
 		<th class=header_cell>Plan
 		<th class=header_cell>Administrateurs
 	};
@@ -1632,12 +1632,12 @@ sub listobj {
 			$style  = qq{style="background-color:red;color:yellow;"} ;
 		}
 		
-		$access .= qq{, <div id="units_div$objID" style="display:none; width:500px; height: auto; padding: 10px; border: 1px solid #aaaaaa; position:absolute; top:50%; left:50%; -webkit-transform: translate(-50%,-50%);-ms-transform: translate(-50%,-50%);transform:translate: (-50%,-50%);-moz-transform: translate(-50%,-50%); z-index: 9999; background-color: white; text-align: left; "><b>$obj->{nom}</b> - acc�s implicite pour les accr�ditations dans : <a href="#" style="float:right;"onclick="document.getElementById('units_div$objID').style.display='none';">fermer</a>
+		$access .= qq{, <div id="units_div$objID" style="display:none; width:500px; height: auto; padding: 10px; border: 1px solid #aaaaaa; position:absolute; top:50%; left:50%; -webkit-transform: translate(-50%,-50%);-ms-transform: translate(-50%,-50%);transform:translate: (-50%,-50%);-moz-transform: translate(-50%,-50%); z-index: 9999; background-color: white; text-align: left; "><b>$obj->{nom}</b> - accès implicite pour les accréditations dans : <a href="#" style="float:right;"onclick="document.getElementById('units_div$objID').style.display='none';">fermer</a>
 		<br><br> $obj->{unites}</div>
-		<a href="#" onclick="document.getElementById('units_div$objID').style.display='block';">acc�s implicite...</a>} if $obj->{unites};
+		<a href="#" onclick="document.getElementById('units_div$objID').style.display='block';">accès implicite...</a>} if $obj->{unites};
 		$access =~ s/,/, /g;
 		$access .= '<br><span style="color:red;">indisponible du '.rev_date($datedeb)." au ".rev_date($datefin).'</span>' if $datedeb ge $year.'0101';
-		my $hide = qq{<span style="color:red;">cach�e</span>} if $obj->{hide};
+		my $hide = qq{<span style="color:red;">cachée</span>} if $obj->{hide};
 
 		print qq{
 			<tr $style>
@@ -1665,7 +1665,7 @@ sub listres {
 	
    my $objID = $CONTENTS{objID};
    my $date  = $CONTENTS{date1};
-   print qq{<h2 align=left><img src=/.icons/agenda.gif >R�servations : $userObjects{$objID}->{objdata}->{nom}</h2>
+   print qq{<h2 align=left><img src=/.icons/agenda.gif >Réservations : $userObjects{$objID}->{objdata}->{nom}</h2>
 	<hr>
    };
 
@@ -1679,9 +1679,9 @@ sub listres {
 		($startdate, $enddate) = split (/\t/, &get_start_end_week($date));
    }
 	$enddate = &get_next_n_day($enddate,2);
-	print "<li><b>les r�servations de la semaine du ".&rev_date($startdate,1)."</b>\n";
+	print "<li><b>les réservations de la semaine du ".&rev_date($startdate,1)."</b>\n";
 	print " [ <a href=$thescript?date=".&get_next_n_day($startdate,7).">semaine suivante&gt;&gt;</a> ] 
-	  [ <b>graphiques:</b> <a href=$thescript/graph?objID=toutes&graph_type=W&date1=".&rev_date($startdate).">cette semaine</a> �
+	  [ <b>graphiques:</b> <a href=$thescript/graph?objID=toutes&graph_type=W&date1=".&rev_date($startdate).">cette semaine</a> à
 			<a href=$thescript/graph?objID=toutes&graph_type=W&date1=".&rev_date(&get_next_n_day($startdate,7)).">semaine suivante&gt;&gt;</a>]";
 	
     listRes ($startdate, $enddate, $objID);
@@ -1694,7 +1694,7 @@ sub listres {
 sub listRes {
   my ($d1, $d2, $objID, $sciper_todo, $no_userdata) = @_;
 
-  erreur ("dates d�but et fin absentes") unless $d1 and $d2;
+  erreur ("dates début et fin absentes") unless $d1 and $d2;
 
   my @crt_res = getAllRes ($d1, $d2, $objID);
   my $output;
@@ -1702,7 +1702,7 @@ sub listRes {
   my @filter;
   if ($CONTENTS{motcle}) {
 	@filter = $CONTENTS{motcle} =~ /,/ ? split /,/, $CONTENTS{motcle} : split / /, $CONTENTS{motcle};
-	$output .= qq{ - r�servations filtr�es par mots cl�s : $CONTENTS{motcle}};
+	$output .= qq{ - réservations filtrées par mots clés : $CONTENTS{motcle}};
   }
 
   my $url;
@@ -1719,12 +1719,12 @@ sub listRes {
 		<p><table border=1 cellpadding=0 cellspacing=0><tr>
 		<td style="text-align:center;" width=100 class="header_cell"><b>date</b>
 		<td style="text-align:center;" align=center width=50 class="header_cell"><a href="${url}sortbyhour=1"><img src="/images/arrow-up.png" height=12></a> <b>de</b>
-		<td style="text-align:center;" align=center width=50 class="header_cell"><b>�</b>
+		<td style="text-align:center;" align=center width=50 class="header_cell"><b>à</b>
 		<td align=center width=120 class="header_cell"><a href="$url"><img src="/images/arrow-up.png" height=12></a> <b>salle/objet</b>
 		<td align=center width=50 class="header_cell"><b>Nb. objets</b>
 		<td align=center width=180 class="header_cell"><b>raison</b>
 	  };
-	  $output .= qq{<td align=center width=200 class="header_cell"><b>r�serv� par</b>} unless $no_userdata;
+	  $output .= qq{<td align=center width=200 class="header_cell"><b>réservé par</b>} unless $no_userdata;
 #	  $output .= qq{<td align=center width=50 class="header_cell"><b>sciper</b>} unless $no_userdata;
   }
   
@@ -1828,7 +1828,7 @@ sub listRes {
 #__________________
 sub listconflicts {
 	
-   print qq{<h2 align=left><img src=/.icons/agenda.gif > Conflits des r�servations </h2>};
+   print qq{<h2 align=left><img src=/.icons/agenda.gif > Conflits des réservations </h2>};
    my @conflicts = checkConflicts('', '1');
    
    unless (scalar @conflicts) {
@@ -1837,7 +1837,7 @@ sub listconflicts {
    }
    
    print qq{
-   Les r�servations ci-dessous sont en conflit (superposition) de dates � partir du jour courant. Effectuer les corrections n�cessaires pour les r�servations sous votre contr�le ou contacter un administrateur de l'instance autrement.
+   Les réservations ci-dessous sont en conflit (superposition) de dates à partir du jour courant. Effectuer les corrections nécessaires pour les réservations sous votre contrôle ou contacter un administrateur de l'instance autrement.
    <p></p>
    };
    my ($crtdate, $crtsalle);
@@ -1921,9 +1921,9 @@ sub main_graph{
      $file_name  = time().'_'.$aa.'M'.$mm;
      check_feb($aa);
      $maxday     = $mois[$mm];
-#     print "<h2>R�servations : $mois_noms[$mm] $aa</h2>\n";
+#     print "<h2>Réservations : $mois_noms[$mm] $aa</h2>\n";
   } else {
-#     print "<h2>R�servations : semaine du ".&rev_date($dd1,1)."</h2>\n";
+#     print "<h2>Réservations : semaine du ".&rev_date($dd1,1)."</h2>\n";
      my $tmp  = $dd1;
      $tmp     =~ s/ /0/g;
      $week_nb 	 = &get_week_nb ($dd1);
@@ -1951,7 +1951,7 @@ sub main_graph{
 		my $obj = $allObjects{$objID}->{objdata};
 		if ($obj->{visible} eq 'r' and ! exists ($userObjects{$objID})) {
 			print qq{
-				Ressource <b>$obj->{nom}</b> - visibilit� en acc�s restreint - <a href=$thescript/search?op=obj&nom_obj=$obj->{nom}>contacter ses administrateurs</a> pour plus de d�tails
+				Ressource <b>$obj->{nom}</b> - visibilité en accès restreint - <a href=$thescript/search?op=obj&nom_obj=$obj->{nom}>contacter ses administrateurs</a> pour plus de détails
 			};
 			next;
 		}
@@ -1997,14 +1997,14 @@ sub main_graph{
 			my $next_year = $aa;$next_month = $mm + 1; if ($next_month > 12) {$next_month = 1;  $next_year = $aa +1;}
 			my $pdate	 = sprintf "01/%02d/%4d", $prev_month, $prev_year;
 			my $ndate	 = sprintf "01/%02d/%4d", $next_month, $next_year;
-			print qq{<hr>Ressource : <b>$nom_salle</b>, $mois_noms[$mm] $aa  <a href=$thescript/$path_info?${objects}date1=$pdate&graph_type=M&show_descr=$CONTENTS{show_descr}>pr�c�dent</a> | <a href=$thescript/$path_info?${objects}date1=$ndate&graph_type=M&show_descr=$CONTENTS{show_descr}>suivant</a>  $hascnflcts<br>
+			print qq{<hr>Ressource : <b>$nom_salle</b>, $mois_noms[$mm] $aa  <a href=$thescript/$path_info?${objects}date1=$pdate&graph_type=M&show_descr=$CONTENTS{show_descr}>précédent</a> | <a href=$thescript/$path_info?${objects}date1=$ndate&graph_type=M&show_descr=$CONTENTS{show_descr}>suivant</a>  $hascnflcts<br>
 			$descr
 			<p><a href=$thescript/image?objID=$objID&path_info=$path_info&graph_type=$graph_type&map=$file_name><img src=$maps_url/$file_name.gif border=0 ISMAP></a>
 			};
 		} else {
 			my $nd = &get_next_n_day((sprintf "%4d%02d%02d",$aa,$mm,$jj), 7);
 			my $pd = &get_prev_n_day((sprintf "%4d%02d%02d",$aa,$mm,$jj), 7);
-			printf "<hr>Ressource : <b>$nom_salle</b>, semaine du ".&rev_date($dd1,1)." :  <a href=$thescript/$path_info?objID=%s&graph_type=W&date1=%s>pr�c�dente</a> ",$objID,&rev_date($pd);
+			printf "<hr>Ressource : <b>$nom_salle</b>, semaine du ".&rev_date($dd1,1)." :  <a href=$thescript/$path_info?objID=%s&graph_type=W&date1=%s>précédente</a> ",$objID,&rev_date($pd);
 			printf " | <a href=$thescript/$path_info?objID=%s&graph_type=W&date1=%s>suivante</a> ",$objID, &rev_date($nd);
 			printf " | <a href=$thescript/$path_info?objID=$objID&path_info=$path_info&graph_type=M&date1=01/%02d/%4d>le graphique du mois</a> ",$mm,$aa ;
 			print qq{ $hascnflcts<br>
@@ -2277,7 +2277,7 @@ sub image {
 			$CONTENTS{res_id} = $out->[0];
 			&disp_res ();
 		} else {
-			print qq{<h3>R�servations multiples $userObjects{$objID}->{objdata}->{nom}</h3>};
+			print qq{<h3>Réservations multiples $userObjects{$objID}->{objdata}->{nom}</h3>};
 
 			my $res_ids = join ',', @$out;
 			my $sql = qq{select * from res where id in ($res_ids) };
@@ -2288,8 +2288,8 @@ sub image {
 			<table style="width:50%;">
 				<tr style="font-weight: bold;">
 				<th>Raison
-				<th>D�tails
-				<th>D�but
+				<th>Détails
+				<th>Début
 				<th>Fin
 			};
 			while (my $data = $sth->fetchrow_hashref) {
@@ -2308,7 +2308,7 @@ sub image {
 #------------------ nouvelle reservation  ---------------------
   if (($out = &where_is ($x, $y, @map_disp))    ne '') {
 	  if ($d1 lt $crt_date) {
-	    &erreur ("date d�j� pas�e");
+	    &erreur ("date déjà passée");
 	  }
 #	  $jour = &get_day_name($x1,$m,$an);
 	  $d1 =~ s/ /0/g;
@@ -2472,12 +2472,12 @@ sub resConflict {
 		my $pool = $userObjects{$objID}->{objdata}->{pool} if $userObjects{$objID}->{objdata}->{pool} > 1;
 		print "
 		<h4><font color=red>Conflits de dates ou plus de ressources disponibles</font></h4><br>
-		Il y a d�j� des r�servations pour <b>$userObjects{$objID}->{objdata}->{nom}</b> $pool pour les dates suivantes
+		Il y a déjà des réservations pour <b>$userObjects{$objID}->{objdata}->{nom}</b> $pool pour les dates suivantes
 		<style>
 		th { font-weight: bold; background: #dddddd; margin: 0; }
 		td { padding: 2px 10px 0 5px; border-bottom: 1px solid #aaaaaa; }
 		</style>
-		<table cellspacing=0 cellpadding=0 style='background: #eeeeee;'><th>date<th>de<th>�<th>nb. d'objets<th>r�serv� pour<th>par
+		<table cellspacing=0 cellpadding=0 style='background: #eeeeee;'><th>date<th>de<th>à<th>nb. d'objets<th>réservé pour<th>par
 		";
   	foreach my $date (keys %$conflicts) {
   		my $conflObj = $conflicts->{$date};
@@ -2507,11 +2507,11 @@ sub resConflict {
  	}
 	
 	unless (scalar @$refdates) {	# - no dates
-		my $errtxt  = "R�servation refus�e. ";
-		   $errtxt .= "<br>V�rifier la disponibilit� d'objets du pool de cette ressource" if $userObjects{$objID}->{objdata}->{pool} > 1;
+		my $errtxt  = "Réservation refusée. ";
+		   $errtxt .= "<br>Vérifier la disponibilité d'objets du pool de cette ressource" if $userObjects{$objID}->{objdata}->{pool} > 1;
 		&erreur ($errtxt, 1);
 	} else {
-		print qq{<p><span style="color:red;font-weight:bold;">Les dates en conflit ont �t� enlev�es de la liste ci-dessous.</span></p>} if scalar keys %$conflicts;
+		print qq{<p><span style="color:red;font-weight:bold;">Les dates en conflit ont été enlevées de la liste ci-dessous.</span></p>} if scalar keys %$conflicts;
   }
 }
 
@@ -2557,12 +2557,12 @@ sub resConflict_OLD {
 		my $pool = qq{ [ nb. obj : $userObjects{$objID}->{objdata}->{pool} ] } if $userObjects{$objID}->{objdata}->{pool} > 1;
 		print "
 		<h4><font color=red>Conflits de dates ou plus de ressources disponibles</font></h4><br>
-		Il y a d�j� des r�servations pour <b>$userObjects{$objID}->{objdata}->{nom}</b> $pool pour les dates suivantes
+		Il y a déjà des réservations pour <b>$userObjects{$objID}->{objdata}->{nom}</b> $pool pour les dates suivantes
 		<style>
 		th { font-weight: bold; background: #dddddd; margin: 0; }
 		td { padding: 2px 10px 0 5px; border-bottom: 1px solid #aaaaaa; }
 		</style>
-		<table cellspacing=0 cellpadding=0 style='background: #eeeeee;'><th>date<th>de<th>�<th>nb. d'objets<th>r�serv� pour<th>par
+		<table cellspacing=0 cellpadding=0 style='background: #eeeeee;'><th>date<th>de<th>à<th>nb. d'objets<th>réservé pour<th>par
 		";
   	foreach (@conflicts) {
 		my ($res_id, $date, $hdeb, $hfin, $nom, $sciper, $pool) = split (/\t/, $_);
@@ -2580,11 +2580,11 @@ sub resConflict_OLD {
 	print "</table><hr>";
 	
 	unless (scalar @$refdates) {	# - no dates
-		my $errtxt  = "R�servation refus�e. ";
-		   $errtxt .= "<br>V�rifier la disponibilit� d'objets du pool de cette ressource" if $userObjects{$objID}->{objdata}->{pool} > 1;
+		my $errtxt  = "Réservation refusée. ";
+		   $errtxt .= "<br>Vérifier la disponibilité d'objets du pool de cette ressource" if $userObjects{$objID}->{objdata}->{pool} > 1;
 		&erreur ($errtxt, 1);
 	} else {
-		print qq{<p><span style="color:red;font-weight:bold;">Les dates en conflit ont �t� enlev�es de la liste ci-dessous.</span></p>};
+		print qq{<p><span style="color:red;font-weight:bold;">Les dates en conflit ont été enlevées de la liste ci-dessous.</span></p>};
 	}
   }
 }
@@ -2593,15 +2593,15 @@ sub resConflict_OLD {
 sub mod_res {
   my ($res_id)= $CONTENTS{res_id};
   
-  erreur ("identificateur de r�servation absent", 1) unless $res_id;
+  erreur ("identificateur de réservation absent", 1) unless $res_id;
   
   my %res = getRes ($res_id);
-  erreur ("r�servation inconnue : id=$res_id", 1) unless $res{res_id};
+  erreur ("réservation inconnue : id=$res_id", 1) unless $res{res_id};
 
-  erreur ("pas de droits pour cette r�servation, veuillez contacter un administrateur", 1) unless (resAccessAllowed (\%res)  and ($res{sciper} eq $CONTENTS{sciper} or $Admins{$CONTENTS{sciper}}->{$res{obj_id}}));
+  erreur ("pas de droits pour cette réservation, veuillez contacter un administrateur", 1) unless (resAccessAllowed (\%res)  and ($res{sciper} eq $CONTENTS{sciper} or $Admins{$CONTENTS{sciper}}->{$res{obj_id}}));
 
   if ($CONTENTS{op} eq 'del') {
-     print "<hr><h2>R�servation annul�e par $dinfo{$CONTENTS{sciper}}->{nom}  $dinfo{$CONTENTS{sciper}}->{prenom}</h2>\n";
+     print "<hr><h2>Réservation annulée par $dinfo{$CONTENTS{sciper}}->{nom}  $dinfo{$CONTENTS{sciper}}->{prenom}</h2>\n";
      &disp_res($res_id, 1);
      my $sciper = $res{sciper};
 
@@ -2616,23 +2616,23 @@ sub mod_res {
 	 logger ($res{obj_id}, $res_id, qq{del res : $res{nom} [$userObjects{$res{obj_id}}->{objdata}->{nom},$res{periodic},$res{jour},$res{hdeb}-$res{hfin}]});
 	 
 	my $msg = qq{
-R�servation annul�e
+Réservation annulée
 
     Ressource : $userObjects{$res{obj_id}}->{objdata}->{nom}
 Annulation par: $dinfo{$CONTENTS{sciper}}->{nom}  $dinfo{$CONTENTS{sciper}}->{prenom}};
  	$msg .= qq{
- R�serv� pour : $dinfo{$sciper}->{nom}  $dinfo{$sciper}->{prenom}} if $CONTENTS{sciper} ne $sciper;
+ Réservé pour : $dinfo{$sciper}->{nom}  $dinfo{$sciper}->{prenom}} if $CONTENTS{sciper} ne $sciper;
  	$msg .= qq{
        Raison : $res{nom} [ $res{descr} ]
          Date : @{$res{dates}}
-  P�riodicit� : $res{periodic}
+  Périodicité : $res{periodic}
          Jour : $res{jour}
-  Heure D�but : $res{hdeb}
+  Heure Début : $res{hdeb}
     Heure Fin : $res{hfin}
 
-L'acc�s � l'application (authentification Gaspar/Tequila requise) : $URLres
+L'accès à l'application (authentification Gaspar/Tequila requise) : $URLres
 
-Votre syst�me de gestion des r�servations
+Votre système de gestion des réservations
 	};
 	notifyUsers($res{obj_id}, $msg);
 
@@ -2640,7 +2640,7 @@ Votre syst�me de gestion des r�servations
   
   if ($CONTENTS{op} eq 'mod') {
   
-	print "<h2>R�servations : mise � jour</h2>\n";
+	print "<h2>Réservations : mise à jour</h2>\n";
 	
 	unless ($CONTENTS{step}) {
 		if ($res{periodic} eq "ponctuelle") {
@@ -2715,13 +2715,13 @@ sub add_res {
 
    my $sel;
    
-   print qq{<h3><img src=/.icons/agenda.gif >Gestion des r�servations</h3>};
+   print qq{<h3><img src=/.icons/agenda.gif >Gestion des réservations</h3>};
 
    $CONTENTS{ACC_TYPE} = 'R';
    if ($CONTENTS{objID}) {
-   		erreur ("vous n'avez pas acc�s pour ajouter une r�servation � cette ressource, veuillez contacter un administrateur", 1) unless objAccessAllowed ($CONTENTS{objID});
+   		erreur ("vous n'avez pas accès pour ajouter une réservation à cette ressource, veuillez contacter un administrateur", 1) unless objAccessAllowed ($CONTENTS{objID});
    } else {
-   		erreur ("salle/ressource pas pr�cis�e") if $CONTENTS{pass} eq '0';
+   		erreur ("salle/ressource pas précisée") if $CONTENTS{pass} eq '0';
    }
    
    if ($CONTENTS{op} eq 'renew' or $CONTENTS{op} eq 'ignore') {
@@ -2768,7 +2768,7 @@ sub add_res {
 			  <input type=hidden name=unite 	value=$unite>	
 			  <input type=hidden name=pool	 	value=$pool>	
 			  <hr>
-			  <p>Prolongation des dates pour la r�servation p�riodique <b>$res{periodic} $res{jour}</b> du :
+			  <p>Prolongation des dates pour la réservation périodique <b>$res{periodic} $res{jour}</b> du :
 			   <input type="text" name="date1" id="date1" size="10" value="}.rev_date($CONTENTS{date}).qq{">,  jusqu'au : <input type="text" name="date2" id="date2" size="10" value="}.rev_date($next_date).qq{"> 
 			  <input type=submit name=go value=enregistrer>
 			  </form>
@@ -2805,13 +2805,13 @@ sub add_res {
    $CONTENTS{pool}		= 1 unless $CONTENTS{pool};
 	
    if ($CONTENTS{mode} eq '0') {
-     print "<b>r�servation ponctuelle</b>";
+     print "<b>réservation ponctuelle</b>";
    } elsif ($CONTENTS{mode} eq '1') {
-     print "<b>r�servation quotidienne</b>";
+     print "<b>réservation quotidienne</b>";
    } elsif ($CONTENTS{mode} eq '2') {
-     print "<b>r�servation p�riodique</b>";
+     print "<b>réservation périodique</b>";
    }
-   print " - <font color=red><b>attention:</b> la date limite pour les r�servations est le : <b>" . &rev_date($LAST_DATE,1) . qq{</b></font>};
+   print " - <font color=red><b>attention:</b> la date limite pour les réservations est le : <b>" . &rev_date($LAST_DATE,1) . qq{</b></font>};
    if ($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} and $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} ne '0000-00-00') {
    	print qq{<br><span style="color:red;">La ressource est inaccessible du }.rev_date($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}).' au '.rev_date($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}).qq{</span>};
    }
@@ -2841,7 +2841,7 @@ sub add_res {
 		<tr><td><span style="color:red;">indisponible:</span><td>du $indispd1 au $indispd2} if $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} and $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}  ne '0000-00-00';
 	print qq{
 	  <tr><td><b>raison:</b><td><input name=noms value="$CONTENTS{noms}">
-	  <tr><td><b>d�tails:</b><td><input name=descr value="$CONTENTS{descr}" size=48>
+	  <tr><td><b>détails:</b><td><input name=descr value="$CONTENTS{descr}" size=48>
    };
  
    $CONTENTS{hdeb} = substr ($CONTENTS{date}, 8, 5) unless $CONTENTS{hdeb};
@@ -2861,7 +2861,7 @@ sub add_res {
        };
 
       &pr_hhmm (" de ", 1, $CONTENTS{hdeb});
-      &pr_hhmm (" � ", 2,  $CONTENTS{hfin});
+      &pr_hhmm (" à ", 2,  $CONTENTS{hfin});
    }
    
    my $next_date = get_next_n_day ($CONTENTS{date}, 7);
@@ -2880,7 +2880,7 @@ sub add_res {
         
 		};
       &pr_hhmm (" de ", 1, $CONTENTS{hdeb});
-      &pr_hhmm (" � ", 2,  $CONTENTS{hfin});
+      &pr_hhmm (" à ", 2,  $CONTENTS{hfin});
    }
 
    if ($CONTENTS{mode} eq '2') {
@@ -2908,12 +2908,12 @@ sub add_res {
       print " du mois ";
       print "<br>";
       &pr_hhmm (" de ", 1, $CONTENTS{hdeb});
-      &pr_hhmm (" � ", 2,  $CONTENTS{hfin});
+      &pr_hhmm (" à ", 2,  $CONTENTS{hfin});
    }
 
   if ($Admins{$CONTENTS{sciper}}->{$CONTENTS{objID}}) {
 		$CONTENTS{user} = $CONTENTS{sciper} unless $CONTENTS{user};
-		print "<tr><td valign=top><b>r�serv� pour</b>:<td>";
+		print "<tr><td valign=top><b>réservé pour</b>:<td>";
 		if (defined $CONTENTS{unite} && !$allUnitsUsers{$CONTENTS{unite}}->{$CONTENTS{user}}) {
 			print qq{$CONTENTS{user} - no accred<br>};
 			$CONTENTS{user} = '';
@@ -2923,13 +2923,13 @@ sub add_res {
 
   } else {
 		print qq{<input type=hidden name=user value=$CONTENTS{sciper}>
-		<tr><td><b>r�serv� pour:</b><td> $dinfo{$CONTENTS{sciper}}->{prenom}&nbsp;$dinfo{$CONTENTS{sciper}}->{nom}
+		<tr><td><b>réservé pour:</b><td> $dinfo{$CONTENTS{sciper}}->{prenom}&nbsp;$dinfo{$CONTENTS{sciper}}->{nom}
 		};
   }
 
 	getUserData ($CONTENTS{user});
 
-  print qq{<tr><td><b>unit�:</b><td id="div-unite">};
+  print qq{<tr><td><b>unité:</b><td id="div-unite">};
 
   my @accreds = sort { $dinfo{$CONTENTS{user}}->{accreds}->{$a}->{ordre} cmp $dinfo{$CONTENTS{user}}->{accreds}->{$b}->{ordre} } keys %{$dinfo{$CONTENTS{user}}->{accreds}};
   if (scalar @accreds > 1) {
@@ -2940,13 +2940,13 @@ warn "--> add_res $unite : ordre=$dinfo{$CONTENTS{user}}->{accreds}->{$unite}->{
 	   	my $selected = $CONTENTS{unite} eq $unite ? 'selected' : '';
 	   	print qq{<option value="$unite" $selected>$dinfo{$CONTENTS{user}}->{accreds}->{$unite}->{sigle}</option>};
 	   }
-	   print qq{</select> (par ordre des priorit�s accred)};
+	   print qq{</select> (par ordre des priorités accred)};
    } else {
    	 my $unite = $accreds[0];
 	   print qq{
 	   	<input type="hidden" name="unite" value="$unite">
 	   	$dinfo{$CONTENTS{user}}->{accreds}->{$unite}->{sigle}
-	   };	#	- unit� d�faut
+	   };	#	- unité défaut
    }
    print "</table>";
    print "<br><input type=submit value=enregistrer>   <input type=reset  value=reset>";
@@ -2973,17 +2973,17 @@ sub done_res {
    $CONTENTS{hdeb} = $CONTENTS{hour1}.'h'.$CONTENTS{min1};
    $CONTENTS{hfin} = $CONTENTS{hour2}.'h'.$CONTENTS{min2};
 
-   erreur ("veuillez choisir la salle ou l'objet de r�servation", 1) unless $CONTENTS{objID} ;
-   erreur ("donner la raison de la r�servation, svp.", 1) 			 unless $CONTENTS{noms} ;
-   erreur ("le d�but de r�servation est apr�s la fin", 1) 			 if $CONTENTS{hdeb} gt $CONTENTS{hfin};
+   erreur ("veuillez choisir la salle ou l'objet de réservation", 1) unless $CONTENTS{objID} ;
+   erreur ("donner la raison de la réservation, svp.", 1) 			 unless $CONTENTS{noms} ;
+   erreur ("le début de réservation est après la fin", 1) 			 if $CONTENTS{hdeb} gt $CONTENTS{hfin};
    
    my $obj = $allObjects{$CONTENTS{objID}}->{objdata};
 
    erreur("ressource inconnue") unless $obj;
    if ($obj->{pool} > 1) {
-	  erreur ("nb d'objets non num�rique", 1) if $CONTENTS{pool} and $CONTENTS{pool} =~ /\D/;
-	  erreur ("nb d'objets r�serv�s ($CONTENTS{pool}) d�passe la taille du pool ($obj->{pool})", 1)	if $CONTENTS{pool} and $CONTENTS{pool} > $obj->{pool};
-	  erreur ("max $obj->{max_pool} objets par r�servation", 1) if $CONTENTS{pool} and $CONTENTS{pool} > $obj->{max_pool};
+	  erreur ("nb d'objets non numérique", 1) if $CONTENTS{pool} and $CONTENTS{pool} =~ /\D/;
+	  erreur ("nb d'objets réservés ($CONTENTS{pool}) dépasse la taille du pool ($obj->{pool})", 1)	if $CONTENTS{pool} and $CONTENTS{pool} > $obj->{pool};
+	  erreur ("max $obj->{max_pool} objets par réservation", 1) if $CONTENTS{pool} and $CONTENTS{pool} > $obj->{max_pool};
    } else {
    	  $CONTENTS{pool} = 1;
    }
@@ -3040,7 +3040,7 @@ sub done_res {
 	  my $date1 = &valid_date($CONTENTS{"date1"}, $CONTENTS{objID});
 	  my $date2 = &valid_date($CONTENTS{"date2"}, $CONTENTS{objID});
 	  my @dates = &get_dates_from_name($CONTENTS{periodic}, $CONTENTS{jour}, $date1, $date2);
-	  erreur ("aucune date qui correspond � votre s�lection") unless scalar @dates;
+	  erreur ("aucune date qui correspond à votre sélection") unless scalar @dates;
 
 	  &resConflict($CONTENTS{objID}, $CONTENTS{res_id}, $CONTENTS{hdeb}, $CONTENTS{hfin}, $CONTENTS{pool}, \@dates);
 	  foreach $td (@dates) {
@@ -3059,7 +3059,7 @@ sub done_res {
 			push @sel_dates, $td;
 		} else {
 			print "<br><font color=red>date: ".&rev_date($td)." - objet/salle indisponible</font>
-			- pas de r�servation pour cette date";
+			- pas de réservation pour cette date";
 		}
 	  }
 
@@ -3096,18 +3096,18 @@ sub done_res {
 #----
 sub valid_date {
   my ($date, $obj_id) = @_;
-  erreur ("date de r�servations et identification de salle absents") unless ($date and $obj_id);
+  erreur ("date de réservations et identification de salle absents") unless ($date and $obj_id);
   
   my $tdate = &check_date($date);
 
   if ($tdate lt $crt_date) {
-	&erreur ("date: ".&rev_date($tdate)." d�j� pass�e") unless $Admins{$CONTENTS{sciper}}->{$obj_id};
+	&erreur ("date: ".&rev_date($tdate)." déjà passée") unless $Admins{$CONTENTS{sciper}}->{$obj_id};
   }
   if ($tdate gt $LAST_DATE) {
-	&erreur ("date: ".&rev_date($tdate,1)." au-del� de la date limite des r�servations: ". &rev_date($LAST_DATE,1));
+	&erreur ("date: ".&rev_date($tdate,1)." au-delà de la date limite des réservations: ". &rev_date($LAST_DATE,1));
   }
   
-  erreur ("Les r�servations pour $userObjects{$obj_id}->{objdata}->{nom} pour cette date [".rev_date($tdate)."] sont acc�ssibles seulement aux administrateurs", 1) unless objDispo($obj_id, $tdate);
+  erreur ("Les réservations pour $userObjects{$obj_id}->{objdata}->{nom} pour cette date [".rev_date($tdate)."] sont accéssibles seulement aux administrateurs", 1) unless objDispo($obj_id, $tdate);
 
   return ($tdate);
 }
@@ -3119,7 +3119,7 @@ sub objDispo {
 
   return 1 	unless ($userObjects{$objID}->{objdata}->{disp});
 
-  return i  if $Admins{$CONTENTS{sciper}}->{$objID} ;	# - acc�s restreint - admin
+  return i  if $Admins{$CONTENTS{sciper}}->{$objID} ;	# - accès restreint - admin
   my $d1 = $userObjects{$objID}->{objdata}->{datedeb};
   my $d2 = $userObjects{$objID}->{objdata}->{datefin};
   	 $d1 =~ s/\-//g;
@@ -3166,7 +3166,7 @@ sub listdates {
 
    print qq{
    <tr><td><b>raison:</b><td><input 	name="noms"  value="$CONTENTS{noms}">
-   <tr><td><b>d�tails:</b><td><input 	name="descr" value="$CONTENTS{descr}" size="48">
+   <tr><td><b>détails:</b><td><input 	name="descr" value="$CONTENTS{descr}" size="48">
    <tr><td><b>dates:</b><br>(<i>choix multiple</i>)<td><table>
    <tr><td width="300">
    	<select name="dates" multiple size="15">
@@ -3188,17 +3188,17 @@ sub listdates {
 			$hour++;
 			$CONTENTS{hfin} = $hour.'h'.$rest;
    }
-   &pr_hhmm (" � ", 2, $CONTENTS{hfin});
-   print "<td>Pour cette r�servation vous avez choisi les dates ci-contre.
-   <br>Pour enlever certaines dates, d�s�lectionner les valeurs; pour en rajouter,
-   revenir sur la page pr�cedente (bouton <b>Back</b>) et faire votre nouveau choix
-   <p>ATTENTION, pour les op�rations de s�lection et d�s�lection, veuillez consulter
-	le mode d'emploi de votre browser (� l'aide des touches &lt;Shift&gt;, &lt;CTRL&gt; 
+   &pr_hhmm (" à ", 2, $CONTENTS{hfin});
+   print "<td>Pour cette réservation vous avez choisi les dates ci-contre.
+   <br>Pour enlever certaines dates, désélectionner les valeurs; pour en rajouter,
+   revenir sur la page précédente (bouton <b>Back</b>) et faire votre nouveau choix
+   <p>ATTENTION, pour les opérations de sélection et désélection, veuillez consulter
+	le mode d'emploi de votre browser (à l'aide des touches &lt;Shift&gt;, &lt;CTRL&gt;
 	ou &lt;cmd&gt;)\n";
    print "</table>";
 
    if ($Admins{$CONTENTS{sciper}}->{$objID}) {
-			print "<tr><td valign=top><b>r�serv� pour:</b><td>";
+			print "<tr><td valign=top><b>réservé pour:</b><td>";
 			&sel_user('user',$CONTENTS{user}, '-- choisir --');
    } else {
    		print "<input type=hidden name=user value=$CONTENTS{sciper}>\n";
@@ -3224,12 +3224,12 @@ sub gestion {
 sub ges_res {
   my ($realuser)   = @_;
 
-   print "<h2>Consultation et gestion des r�servations </h2>\n";
+   print "<h2>Consultation et gestion des réservations </h2>\n";
    
 # - consultation
    print qq{
    	<form name="form" action="$thescript/cons_res" method="post">
-   	<h4>Consulter les r�servations</h4>
+   	<h4>Consulter les réservations</h4>
    };
 	
    checkConflicts ();
@@ -3237,7 +3237,7 @@ sub ges_res {
 	print qq{
 	<table>
 	<tr>
-	<td valign=top><b>Ressource/salle : (s�lection multiple possible)</b> </td>
+	<td valign=top><b>Ressource/salle : (sélection multiple possible)</b> </td>
 	<td>
 	};
 	selObj ('objID','',1, 'multiple');
@@ -3253,7 +3253,7 @@ sub ges_res {
 		</a>
 		
 		<tr>
-			<td><b>Filtrer par mots cl�s</b> de la raison de r�servation :<br>(s�par�s par espace)
+			<td><b>Filtrer par mots clés</b> de la raison de réservation :<br>(séparés par espace)
 			<td colspan="2"><input name="motcle" size="48">
 		</tr>
 
@@ -3291,7 +3291,7 @@ sub cons_res {
 	my $date2 = &check_date($CONTENTS{date2});
 
   print  qq{
-	<h2><img src=/.icons/agenda.gif >Consultation des r�servations </h2>
+	<h2><img src=/.icons/agenda.gif >Consultation des réservations </h2>
 	du }.rev_date($date1)." au ".rev_date($date2);
 
 	listRes ($date1, $date2, $CONTENTS{objID}, $CONTENTS{sciper_todo});
@@ -3326,13 +3326,13 @@ sub pr_hhmm {
 #__________________
 sub done_obj {
 
-   print  qq{<h1>Mise � jour d'une ressource</h1>};
+   print  qq{<h1>Mise à jour d'une ressource</h1>};
 
    unless ($superusers =~ /\b$CONTENTS{sciper}\b/) {
 	   if ($CONTENTS{objID}) {
 	   	erreur ("pas de droits de gestion pour cette ressource") unless exists $Admins{$CONTENTS{sciper}}->{$CONTENTS{objID}};
 	   } else {
-	   	erreur ("pas de droits de gestion des objets de r�servation") unless exists $Admins{$CONTENTS{sciper}};
+	   	erreur ("pas de droits de gestion des objets de réservation") unless exists $Admins{$CONTENTS{sciper}};
 	   }
    }
    
@@ -3345,16 +3345,16 @@ sub done_obj {
 
    $errors .= qq{nom ressource vide <br>} 									unless $CONTENTS{nom};
    $errors .= qq{description de la ressource vide<br>} 			unless $CONTENTS{descr};
-   $errors .= qq{nombre d'objets du pool non-num�rique<br>} if $CONTENTS{pool} and $CONTENTS{pool} =~ /\D/;
-   $errors .= qq{nb max d'objetsen r�servation plus grand que le pool<br>} if $CONTENTS{max_pool} > $CONTENTS{pool};
+   $errors .= qq{nombre d'objets du pool non-numérique<br>} if $CONTENTS{pool} and $CONTENTS{pool} =~ /\D/;
+   $errors .= qq{nb max d'objetsen réservation plus grand que le pool<br>} if $CONTENTS{max_pool} > $CONTENTS{pool};
 	 if ($CONTENTS{disp} eq 'r' || $CONTENTS{disp} eq 'i') {
 warn "--> done_obj: $CONTENTS{date1}, $CONTENTS{date2}\n";
-	 	   $errors .= qq{dates d'indisponibilit� pas pr�cis�es} unless $CONTENTS{date1} && $CONTENTS{date2};
+	 	   $errors .= qq{dates d'indisponibilité pas précisées} unless $CONTENTS{date1} && $CONTENTS{date2};
 	 }
    erreur ($errors);
 
 	 if ($CONTENTS{date1} || $CONTENTS{date2}) {
-		 $errors .= qq{'dates d\'indisponibilit� pas pr�cis�es'} unless $CONTENTS{date1} && $CONTENTS{date2};
+		 $errors .= qq{'dates d\'indisponibilité pas précisées'} unless $CONTENTS{date1} && $CONTENTS{date2};
 		 my ($tday, $tmon, $tyear) = split (/\//, $CONTENTS{date1});
 			($tday, $tmon, $tyear) 	 = split (/\./, $CONTENTS{date1}) unless $tday and $tmon and $tyear;
 		 my $date = &check_date($CONTENTS{date1});
@@ -3385,7 +3385,7 @@ warn "--> done_obj: $CONTENTS{date1}, $CONTENTS{date2}\n";
    my $objID = majObject ($obj);
    
    print qq{
-   op�ration effectu�e : <a href="$thescript/gestion?op=obj">retour � la liste des ressources</a>
+   opération effectuée : <a href="$thescript/gestion?op=obj">retour à la liste des ressources</a>
    };
    
    &footpage;
@@ -3395,17 +3395,17 @@ warn "--> done_obj: $CONTENTS{date1}, $CONTENTS{date2}\n";
 sub popup {
 
    my $objID = $CONTENTS{objID};
-   erreur ("op�rations en acc�s r�serv�") unless $Admins{$CONTENTS{sciper}};
+   erreur ("opérations en accès réservé") unless $Admins{$CONTENTS{sciper}};
    
    if ($CONTENTS{add}) {
 		my $add_item = $CONTENTS{add_item};
-		error('unit�/groupe pas pr�cis�') unless $add_item;
+		error('unité/groupe pas précisé') unless $add_item;
 
 		my @items = $CONTENTS{type} eq 'unites' 
 					? getAllUnits($CONTENTS{add_item})
 					: map { $_->{name} } $Groupes->searchGroup($CONTENTS{add_item});
 #warn "items\n".Dumper(@items);
-		erreur('�l�ment pas trouv�') if $#items < 0;
+		erreur('élément pas trouvé') if $#items < 0;
 		my %crtitems;
 		foreach my $item (split(/,/, uc($CONTENTS{items}))) {
 			$crtitems{$item} = 1;
@@ -3419,21 +3419,21 @@ sub popup {
 	} elsif ($CONTENTS{del}) {
 		my $del_item = $CONTENTS{del_item};
 		$CONTENTS{items} = ",$CONTENTS{items}";
-		erreur("aucune unit� pr�cis�e") unless $del_item;
+		erreur("aucune unité précisée") unless $del_item;
 		$CONTENTS{items} =~ s/,$del_item//;
 		$CONTENTS{items} =~ s/$del_item,//;
 		$CONTENTS{items} =~ s/,,//;
 	} 
 	
 	my $txt1 = $CONTENTS{type} eq 'unites' 
-			? qq{Rattachement automatique aux unit�s suivantes}
+			? qq{Rattachement automatique aux unités suivantes}
 			: qq{Rattachement automatique aux groupes suivants};
 	my $txt2 = $CONTENTS{type} eq 'unites' 
-			? qq{ajouter une unit�}
+			? qq{ajouter une unité}
 			: qq{ajouter un groupe}; 
 	my $txt3 = "ajouter";
 	my $txt4 = $CONTENTS{type} eq 'unites' 
-			? qq{liste des unit�s}
+			? qq{liste des unités}
 			: qq{liste des groups}; 
 	my $txt5 = $CONTENTS{type} eq 'unites' 
 			? qq{sigle EPFL}
@@ -3486,7 +3486,7 @@ sub popup {
 sub logs {
 
    my $objID = $CONTENTS{objID};
-#   erreur ("op�rations en acc�s r�serv�") unless $Admins{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/;
+#   erreur ("opérations en accès réservé") unless $Admins{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/;
    erreur ("salle/objet absent") unless ($objID) ;
 
 	my $sql = qq{select * from logs where obj_id=?};
@@ -3528,7 +3528,7 @@ sub logs {
 #_________
 sub extract {
 
-#   erreur ("op�rations en acc�s r�serv�") unless $Admins{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/;
+#   erreur ("opérations en accès réservé") unless $Admins{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/;
 
 	&res_header () unless $CONTENTS{csv};
 	
@@ -3537,8 +3537,8 @@ sub extract {
 
 	unless ($CONTENTS{csv}) {
 		print qq{
-		<h3>Extraction des r�servations</h3><br>
-		Extraction des r�servations en format <b>csv</b> :
+		<h3>Extraction des réservations</h3><br>
+		Extraction des réservations en format <b>csv</b> :
 		<form action="$thescript/extract" name="form" method="POST" >
 		<input type="hidden" name="csv" value="1">
 		<b>Objet/salle</b> : 
@@ -3565,7 +3565,7 @@ sub extract {
 	} else {	
 		my $date1	= &check_date($CONTENTS{date1});
 		my $date2	= &check_date($CONTENTS{date2});
-		erreur (qq{date d�but apr�s la date de fin}, 1) if $date1 gt $date2;
+		erreur (qq{date début après la date de fin}, 1) if $date1 gt $date2;
 
 		print "Content-type: text/csv\n"; 
 		my $filename = qq{reservations$date1.$date2.csv};
@@ -3585,11 +3585,11 @@ sub maj_obj {
    my $objID = $CONTENTS{objID};
    my ($obj, $title, $nom, $descr, $disp, $visible, $visip, $visir, $datedeb, $datefin, $plan, $admins, $users, $disp1, $disp2, $disp3, $unites, $groupes, $hide);
    
-   erreur ("op�rations en acc�s r�serv�") unless $Admins{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/;
+   erreur ("opérations en accès réservé") unless $Admins{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/;
    
    if ($objID) {
    	 $obj = $allObjects{$objID}->{objdata};
-   	 erreur ("ressource pas trouv�e [$objID]") 		   unless scalar %$obj;
+   	 erreur ("ressource pas trouvée [$objID]") 		   unless scalar %$obj;
    	 erreur ("pas de droits de gestion pour cet objet") unless $Admins{$CONTENTS{sciper}}->{$objID}  or $superusers =~ /\b$CONTENTS{sciper}\b/;
   	 
   	 if ($CONTENTS{op} eq 'del') {
@@ -3599,15 +3599,15 @@ sub maj_obj {
   	 	<h3>Annulation : $obj->{nom}</h3>
   	 	$obj->{descr}
   	 	<p>
-  	 	Les r�servations et les droits d'acc�s � cette ressource sont effac�s.<br>
-  	 	Tous les utilisateurs de cette ressource ayant activ� les anonces par mail ont �t� avertis de cette op�ration
+  	 	Les réservations et les droits d'accès à cette ressource sont effacés.<br>
+  	 	Tous les utilisateurs de cette ressource ayant activé les anonces par mail ont été avertis de cette opération
    	 	</p>
-	    <a href="$thescript/gestion?op=obj">retour � la liste des ressources</a>
+	    <a href="$thescript/gestion?op=obj">retour à la liste des ressources</a>
   	 	};
   	 	footpage();
   	 }
   	 
-  	 $title 	= qq{Mise � jour d'une ressource};
+  	 $title 	= qq{Mise à jour d'une ressource};
   	 $nom 		= $obj->{nom};
   	 $descr 	= $obj->{descr};
   	 $disp 		= $obj->{disp};
@@ -3651,7 +3651,7 @@ sub maj_obj {
      <td><input name="pool" value="$pool"> (1 si la ressource est unique)</td>
    </tr>
    <tr>
-     <td align="right" width="200"> Nb max d'objets par r�servation</td>
+     <td align="right" width="200"> Nb max d'objets par réservation</td>
      <td><input name="max_pool" value="$max_pool"></td>
    </tr>
    <tr>
@@ -3660,11 +3660,11 @@ sub maj_obj {
    </tr>
 
    <tr>
-     <td align="right" valign="top" width="200" valign="top"><b>Droit de r�servation implicite</b></td>
+     <td align="right" valign="top" width="200" valign="top"><b>Droit de réservation implicite</b></td>
    </tr>
 
    <tr>
-     <td align="right" valign="top" width="200" valign="top"><b>Unit�s</b></td>
+     <td align="right" valign="top" width="200" valign="top"><b>Unités</b></td>
      <td>
 	 <input name="unites" id="unites" value="$unites" size="72" OnClick="window.open('$thescript/popup?type=unites&items='+document.getElementById('unites').value,'absres','height=640,width=640,scrollbars=yes');"> (sigles)</td>
    </tr>
@@ -3683,18 +3683,18 @@ sub maj_obj {
    </tr>
    
    <tr>
-     <td align="right" width="200" valign="top"><b>Visibilit� des r�servations</b></td>
+     <td align="right" width="200" valign="top"><b>Visibilité des réservations</b></td>
      <td>
-       <input type="radio" name="visible" value="p" $visip> ouverte (toute personne authentifi�e Tequila)<br>
+       <input type="radio" name="visible" value="p" $visip> ouverte (toute personne authentifiée Tequila)<br>
        <input type="radio" name="visible" value="r" $visir> restreinte (selon droits implicites ou explicites)<br>
      </td>
    </tr>
    <tr>
-     <td align="right" width="200" valign="top"><b>Acc�s pour r�servations</b></td>
+     <td align="right" width="200" valign="top"><b>Accès pour réservations</b></td>
      <td>
-       <input type="radio" name="disp" value="d" $disp1> disponible (acc�s implicites ou explicites)<br>
-       <input type="radio" name="disp" value="r" $disp2> restreint (r�serv� aux administrateurs et aux acc�s explicites)<br>
-       <input type="radio" name="disp" value="i" $disp3> indisponible (r�serv� aux administrateurs)<br>
+       <input type="radio" name="disp" value="d" $disp1> disponible (accès implicites ou explicites)<br>
+       <input type="radio" name="disp" value="r" $disp2> restreint (réservé aux administrateurs et aux accès explicites)<br>
+       <input type="radio" name="disp" value="i" $disp3> indisponible (réservé aux administrateurs)<br>
        <span style="color:red; margin-right:10px;">indisponible 
        	du <input name="date1" id="date1" size="10" value="}.rev_date($datedeb).qq{">
 		<a href="#" 
@@ -3712,7 +3712,7 @@ sub maj_obj {
    </tr>
    <tr>
      <td align="right" width="200">Plan </td>
-     <td><input type="text" name="plan" size="32" value="$plan"> 	libell� du local (p.ex. ma a0 364) - chercher sur <a href="https://plan.epfl.ch/" target="_blank">plan.epfl.ch</a></td>
+     <td><input type="text" name="plan" size="32" value="$plan"> 	libellé du local (p.ex. ma a0 364) - chercher sur <a href="https://plan.epfl.ch/" target="_blank">plan.epfl.ch</a></td>
    </tr>
    </table>
    <p><input style="background-color: yellow;" name="maj" type="submit" value="enregistrer"></p>
@@ -3730,7 +3730,7 @@ sub ges_user {
 
 	my @users = searchUser ($scipertodo);
 
-	erreur ("personne pas trouv�e : $scipertodo")	unless $users[0];
+	erreur ("personne pas trouvée : $scipertodo")	unless $users[0];
 	
 	foreach my $objID (split (/ /, $CONTENTS{objects})) {
 	 my $userlabel = qq{user_$objID};
@@ -3764,7 +3764,7 @@ sub ges_user {
 #__________________
 sub zombies {
 
-   erreur ("acc�s r�serv�") unless isSuperUser($CONTENTS{sciper});
+   erreur ("accès réservé") unless isSuperUser($CONTENTS{sciper});
 
    if ($CONTENTS{type} eq 'obj') {
 		my $sql = qq{SELECT obj.* from users left outer join obj on obj.id=users.obj_id where sciper is null};
@@ -3796,7 +3796,7 @@ sub search {
 	
 	if ($CONTENTS{op} eq 'obj') {
 		my $nom = $CONTENTS{nom_obj};
-		erreur ("le nom de la salle ou de l'objet recherch� absent", 1) unless $nom;
+		erreur ("le nom de la salle ou de l'objet recherché absent", 1) unless $nom;
 		my %objects;
 		my $count=0;
 		$nom =~ s/\s//g;
@@ -3809,7 +3809,7 @@ sub search {
 			$objects{$data->{id}} = $data;
 			$count++;
 		}
-		erreur ("aucune ressource ne correspond � votre recherche : $nom", 1) if $count == 0;
+		erreur ("aucune ressource ne correspond à votre recherche : $nom", 1) if $count == 0;
 	
 		disp_obj (%objects);
 		
@@ -3819,7 +3819,7 @@ sub search {
 	if ($CONTENTS{op} eq 'usr') {
 		erreur ("saisir le nom de la personne", 1) unless $CONTENTS{nom_usr};
 		my @users = searchUser ($CONTENTS{nom_usr});
-		erreur ("nom pas trouv�")	unless scalar @users;
+		erreur ("nom pas trouvé")	unless scalar @users;
 		if ($#users == 0) {
 			my $scipertodo  = pop @users;
 
@@ -3842,7 +3842,7 @@ sub search {
 
 			foreach my $obj_id (sort {$userObj{$a}->{objdata}->{nom} cmp $userObj{$b}->{objdata}->{nom}} keys %userObj) {
 				next unless $obj_id;
-				my $usr_type = $allObjects{$obj_id}->{usrdata}->{$scipertodo}->{droit} ? 'gestion' : 'r�servation';
+				my $usr_type = $allObjects{$obj_id}->{usrdata}->{$scipertodo}->{droit} ? 'gestion' : 'réservation';
 				print qq{
 				<tr>
 				 <td><b>$userObj{$obj_id}->{objdata}->{nom}</b> ($userObj{$obj_id}->{objdata}->{descr})
@@ -3853,15 +3853,15 @@ sub search {
 
 			if (scalar %{$Admins{$CONTENTS{sciper}}}) {
 				print qq{
-				<h2>Sous votre contr�le</h2>
-				Vous pouvez g�rer les droits de <b>r�servation</b> (acc�s), <b>gestion</b> et l'option <b>notification</b> (confirmation par mail des op�rations sur cette ressource) pour les ressources ci-dessous qui sont sous votre contr�le.<br>
-				Note : vous ne pouvez pas enlever vos propres droits d'acc�s, contacter un administrateur pour ce faire.
+				<h2>Sous votre contrôle</h2>
+				Vous pouvez gérer les droits de <b>réservation</b> (accès), <b>gestion</b> et l'option <b>notification</b> (confirmation par mail des opérations sur cette ressource) pour les ressources ci-dessous qui sont sous votre contrôle.<br>
+				Note : vous ne pouvez pas enlever vos propres droits d'accès, contacter un administrateur pour ce faire.
 				<p></p>
 				<form action="ges_user?objID=$objID" method="post">
 				<input type="hidden" name="scipertodo" value="$scipertodo">
 				<table width="80%" border="1">
 				<th class="header_cell">ressource
-				<th class="header_cell">acc�s et r�servation
+				<th class="header_cell">accès et réservation
 				<th class="header_cell">gestion
 				<th class="header_cell">notification
 				};
@@ -3904,13 +3904,13 @@ sub search {
 			
 			unless (isAuth()) {
 				print qq{
-				<p>Si vous avez des droits d'administration, <a href=$thescript?login=1><b>effectuer la connexion</b></a> pour g�rer les acc�s</p>
+				<p>Si vous avez des droits d'administration, <a href=$thescript?login=1><b>effectuer la connexion</b></a> pour gérer les accès</p>
 				};
 			}
 
 		} else {
 			print qq{<h3>gestion des utilisateurs</h3>
-			S�lectionner une personne
+			Sélectionner une personne
 			<p></p>
 			};
 			foreach my $sciper (sort {lc($dinfo{$a}->{nom}) cmp lc($dinfo{$b}->{nom})} @users) {
@@ -3929,11 +3929,11 @@ sub search {
 sub disp_obj {
 	my (%objects) = @_;
 
-   print  "<h2>Consultation et gestion des objets en r�servation</h2>\n";
+   print  "<h2>Consultation et gestion des objets en réservation</h2>\n";
    
    if (scalar %{$Admins{$CONTENTS{sciper}}}) {
    		print qq{
-   		<li><a href=$thescript/maj_obj>nouvel objet de r�servation</a>
+   		<li><a href=$thescript/maj_obj>nouvel objet de réservation</a>
    		};
    }
    print qq{
@@ -3946,10 +3946,10 @@ sub disp_obj {
 
    <h2>Salles/objets</h2>
 	<b>Actions</b> :
-	<li><img src="/.icons/add.gif" width="14"> &nbsp;| <img src="/.icons/del.gif" width="14"> &nbsp;= demander l'acc�s ou l'annulation du droit de r�servation pour cette ressource aupr�s des administrateurs<br>   
-	<li><img src="/.icons/email-ok.gif" width="14"> | <img src="/.icons/email-ko.gif" width="14"> &nbsp;= �tat de la notification par mail des r�servations pour cette ressource : activ�e | d�sactiv�e (cliquer sur l'ic�ne pour changer).
+	<li><img src="/.icons/add.gif" width="14"> &nbsp;| <img src="/.icons/del.gif" width="14"> &nbsp;= demander l'accès ou l'annulation du droit de réservation pour cette ressource auprès des administrateurs<br>   
+	<li><img src="/.icons/email-ok.gif" width="14"> | <img src="/.icons/email-ko.gif" width="14"> &nbsp;= état de la notification par mail des réservations pour cette ressource : activée | désactivée (cliquer sur l'icône pour changer).
 	<br>
-	<b>Droits</b>: <img src="/.icons/see.png" > consultation ; <img src="/.icons/ok.gif" width="15"">  r�servation ; <img src="/.icons/keys.gif" width="15">  gestion
+	<b>Droits</b>: <img src="/.icons/see.png" > consultation ; <img src="/.icons/ok.gif" width="15"">  réservation ; <img src="/.icons/keys.gif" width="15">  gestion
 	<br><br>
    };
 
@@ -3961,9 +3961,9 @@ sub disp_obj {
 		<th class=header_cell style="min-width:70px;">Droits
 		<th class=header_cell style="min-width:70px;">Nom
 		<th class=header_cell style="min-width:200px;max-width:300px;">Description
-		<th class=header_cell>Ressource cach�e
-		<th class=header_cell>Visibilit� des r�servations
-		<th class=header_cell>Acc�s
+		<th class=header_cell>Ressource cachée
+		<th class=header_cell>Visibilité des réservations
+		<th class=header_cell>Accès
 		<th class=header_cell>Plan
 		<th class=header_cell>Administrateurs
 	};
@@ -4006,14 +4006,14 @@ sub disp_obj {
 		
 		my $actionLink;
 		if (exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}} and $allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}}->{reg}) {	# - registered
-			$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d annulation de l acc�s � $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=unreg'}"><img src="/.icons/del.gif" border="0" width="14"></a>} unless $Admins{$CONTENTS{sciper}}->{$objID};
+			$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d annulation de l accès à $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=unreg'}"><img src="/.icons/del.gif" border="0" width="14"></a>} unless $Admins{$CONTENTS{sciper}}->{$objID};
 		} else {
 			# - test dynamic access
 			my $unites = ','.$obj->{unites}.',';
 			if (map {$unites =~ m/,$_\b/} @allunits) {
-				$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d annulation de l acc�s � $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=unreg'}"><img src="/.icons/del.gif" border="0" width="14"></a>} unless $Admins{$CONTENTS{sciper}}->{$objID};
+				$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d annulation de l accès à $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=unreg'}"><img src="/.icons/del.gif" border="0" width="14"></a>} unless $Admins{$CONTENTS{sciper}}->{$objID};
 			} else {
-				$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d acc�s � $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=reg'}"><img src="/.icons/add.gif" border="0" width="14"></a>};
+				$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d accès à $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=reg'}"><img src="/.icons/add.gif" border="0" width="14"></a>};
 			}
 			
 		}
@@ -4031,12 +4031,12 @@ sub disp_obj {
 			$actionLink = '';
 		}
 		
-		$access .= qq{, <div id="units_div$objID" style="display:none; width:500px; height: auto; padding: 10px; border: 1px solid #aaaaaa; position:absolute; top:50%; left:50%; -webkit-transform: translate(-50%,-50%);-ms-transform: translate(-50%,-50%);transform:translate: (-50%,-50%);-moz-transform: translate(-50%,-50%); z-index: 9999; background-color: white; text-align: left; "><b>$obj->{nom}</b> - acc�s implicite pour les accr�ditations dans : <a href="#" style="float:right;"onclick="document.getElementById('units_div$objID').style.display='none';">fermer</a>
+		$access .= qq{, <div id="units_div$objID" style="display:none; width:500px; height: auto; padding: 10px; border: 1px solid #aaaaaa; position:absolute; top:50%; left:50%; -webkit-transform: translate(-50%,-50%);-ms-transform: translate(-50%,-50%);transform:translate: (-50%,-50%);-moz-transform: translate(-50%,-50%); z-index: 9999; background-color: white; text-align: left; "><b>$obj->{nom}</b> - accès implicite pour les accréditations dans : <a href="#" style="float:right;"onclick="document.getElementById('units_div$objID').style.display='none';">fermer</a>
 		<br><br> $obj->{unites}</div>
-		<a href="#" onclick="document.getElementById('units_div$objID').style.display='block';">acc�s implicite...</a>} if $obj->{unites};
+		<a href="#" onclick="document.getElementById('units_div$objID').style.display='block';">accès implicite...</a>} if $obj->{unites};
 		$access =~ s/,/, /g;
 		$actionLink = '' unless $showAction;
-		my $hide = qq{<span style="color:red;">cach�e</span>} if $obj->{hide};
+		my $hide = qq{<span style="color:red;">cachée</span>} if $obj->{hide};
 
 		print qq{
 			<tr $style>
@@ -4062,8 +4062,8 @@ sub disp_obj {
 #__________________
 sub register {
 	
-	erreur ("objet ou ressource pas pr�cis�") unless $CONTENTS{objID};
-	erreur ("op�ration pas pr�cis�e") 		 unless $CONTENTS{op};
+	erreur ("objet ou ressource pas précisé") unless $CONTENTS{objID};
+	erreur ("opération pas précisée") 		 unless $CONTENTS{op};
 
 	my $objID  = $CONTENTS{objID};
 	my $obj    = $allObjects{$objID}->{objdata};
@@ -4077,49 +4077,49 @@ sub register {
 	}
 	$admins =~ s/,$//;
 	erreur ("ressource sans administrateurs, veuillez avertir le support") unless $admins;
-	erreur ("op�ration inconnue") unless $CONTENTS{op} eq 'reg' or $CONTENTS{op} eq 'unreg';
+	erreur ("opération inconnue") unless $CONTENTS{op} eq 'reg' or $CONTENTS{op} eq 'unreg';
 	
 	my ($msg, $subj);
 	if ($CONTENTS{op} eq 'reg') {
-		erreur ("vous �tes d�j� utilisateur de cette ressource") if exists ($allObects{$objID}->{usrdata}->{$CONTENTS{sciper}});
-		$subj = qq{R�servations : demande d'acc�s � la ressource : $obj->{nom}};
+		erreur ("vous êtes déjà utilisateur de cette ressource") if exists ($allObects{$objID}->{usrdata}->{$CONTENTS{sciper}});
+		$subj = qq{Réservations : demande d'accès à la ressource : $obj->{nom}};
 		$msg = qq{
 	Bonjour,
-	
-Demande d'acc�s pour la r�servation de la ressource : $obj->{nom} ($obj->{descr})
+
+Demande d'accès pour la réservation de la ressource : $obj->{nom} ($obj->{descr})
 Pour   : $dinfo{$CONTENTS{sciper}}->{nom} $dinfo{$CONTENTS{sciper}}->{prenom}
 Sciper : $CONTENTS{sciper}
 Mail   : $dinfo{$CONTENTS{sciper}}->{email}
 
-Proc�dure d'inscription :
+Procédure d'inscription :
 - aller sur la page : $URLres/search?op=usr&nom_usr=$CONTENTS{sciper}&login=1
-- cocher les cases pour activer les droits d'acc�s pour r�servations, 
-gestion et/ou confirmation des op�rations par mail pour la ressource
+- cocher les cases pour activer les droits d'accès pour réservations,
+gestion et/ou confirmation des opérations par mail pour la ressource
 	$userObjects{$objID}->{objdata}->{nom}
-qui est sous votre contr�le
+qui est sous votre contrôle
 
-Votre service de r�servation des ressources
+Votre service de réservation des ressources
 		};
 	}
 	if ($CONTENTS{op} eq 'unreg') {
-		erreur ("vous n'�tes pas utilisateur de cette ressource") unless exists ($allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}});
+		erreur ("vous n'êtes pas utilisateur de cette ressource") unless exists ($allObjects{$objID}->{usrdata}->{$CONTENTS{sciper}});
 
-		$subj = qq{R�servations : demande de r�siliation de l'acc�s � la ressource : $obj->{nom}};
+		$subj = qq{Réservations : demande de résiliation de l'accès à la ressource : $obj->{nom}};
 		$msg = qq{
 	Bonjour,
-	
-Demande de r�siliation de l'acc�s pour la r�servation de la ressource : $obj->{nom} ($obj->{descr})
+
+Demande de résiliation de l'accès pour la réservation de la ressource : $obj->{nom} ($obj->{descr})
 Pour   : $dinfo{$CONTENTS{sciper}}->{nom} $dinfo{$CONTENTS{sciper}}->{prenom}
 Sciper : $CONTENTS{sciper}
 Mail   : $dinfo{$CONTENTS{sciper}}->{email}
 
-Proc�dure d'annulation :
+Procédure d'annulation :
 - aller sur la page : $URLres/search?op=usr&nom_usr=$CONTENTS{sciper}
-- d�cocher la case pour desactiver le droit d'acc�s pour r�servations pour la ressource 
+- décocher la case pour desactiver le droit d'accès pour réservations pour la ressource
 	$userObjects{$objID}->{objdata}->{nom}
-qui est sous votre contr�le
+qui est sous votre contrôle
 
-Votre service de r�servation des ressources
+Votre service de réservation des ressources
 		};
 
 	}
@@ -4127,8 +4127,8 @@ Votre service de r�servation des ressources
 	sendMail ($admins, $subj, $msg) ;
 
 	print qq{
-	<h2>gestion des r�servations</h2>
-	La demande ci-dessous a �t� envoy�e aux administrateurs de la ressource $userObjects{$objID}->{objdata}->{nom}
+	<h2>gestion des réservations</h2>
+	La demande ci-dessous a été envoyée aux administrateurs de la ressource $userObjects{$objID}->{objdata}->{nom}
 <p>
 To : $admins<br>
 Subj : $subj<br>
@@ -4136,19 +4136,19 @@ $msg<br>
 </p>
 	};
 	footpage;
-	
+
 }
 
 #____________
 sub isAuth {
-	
+
  if ($tequila) {
 	 return 1 if $tequila->{attrs}{uniqueid};
  }
 
  foreach my $cookie (split(/;/, $ENV {HTTP_COOKIE})) {
 	 return 1 if $cookie =~ /Tequila_res=/;
- }	
+ }
 
  return 0;
 
@@ -4159,17 +4159,17 @@ sub cons_obj {
 	my ($objID) = @_;
 	$objID = $CONTENTS{objID} unless $objID;
 	return unless $objID;
-	
+
 	my $obj = $allObjects{$objID}->{objdata};
-	erreur("ressource pas trouv�e") unless $obj;
+	erreur("ressource pas trouvée") unless $obj;
 
 #warn "-> cons_obj\n".Dumper($obj);
 
-	if ($obj->{visible} eq 'r') {	# - acc�s restreint
+	if ($obj->{visible} eq 'r') {	# - accès restreint
 		auth() unless $tequila;
 	}
 
-	erreur ("L'acc�s aux r�servations pour cette ressource est limit� aux ayant-droits<br>Veuillez contacter un des administrateurs pour plus d'informations") unless  objAccessAllowed ($objID);
+	erreur ("L'accès aux réservations pour cette ressource est limité aux ayant-droits<br>Veuillez contacter un des administrateurs pour plus d'informations") unless  objAccessAllowed ($objID);
 
 	my @objUsers 	= getObjUsers ($objID);
 	my @admins 		= getObjAdmins($objID);
@@ -4180,15 +4180,15 @@ sub cons_obj {
 			# search by name
 			my @users = searchUser ($CONTENTS{sciperTodo});
 
-			erreur ("nom pas trouv�") unless scalar @users;
-			
+			erreur ("nom pas trouvé") unless scalar @users;
+
 			if ($#users == 0) {
 				$CONTENTS{sciperTodo} = pop @users;
 			} else {
 				print qq{
 					<h3>Nom : $obj->{nom}</h3>
 					<b>Description : </b>$obj->{descr}<br>
-					<br>Ajouter un utilisateur, s�lection :<ul>
+					<br>Ajouter un utilisateur, sélection :<ul>
 				};
 				foreach my $sciper (sort {lc($dinfo->{$a}->{nom}.$dinfo->{$a}->{prenom}) cmp lc($dinfo->{$b}->{nom}.$dinfo->{$a}->{prenom})} @users) {
 					print qq{<li><a href="$URLres/cons_obj?objID=$objID&op=adduser&sciperTodo=$sciper&admin=$CONTENTS{admin}&mail=$CONTENTS{mail}&add=1&admin=$CONTENTS{admin}&mail=$CONTENTS{mail}">$dinfo{$sciper}->{nom}&nbsp;$dinfo{$sciper}->{prenom} [ $sciper ]</a>};
@@ -4196,46 +4196,46 @@ sub cons_obj {
 				print qq{</ul>};
 				&footpage();
 			}
-			
-			
+
+
 		} else {
-			erreur ("sciper erron�");
+			erreur ("sciper erroné");
 		}
 
 		my @sciper_todo = ($CONTENTS{sciperTodo});
-		erreur ("sciper pas trouv�") unless $dinfo{$CONTENTS{sciperTodo}}->{nom};
+		erreur ("sciper pas trouvé") unless $dinfo{$CONTENTS{sciperTodo}}->{nom};
 
-		erreur ("utilisateur d�j� enregistr� pour cette ressource") if (exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciperTodo}});
-		
+		erreur ("utilisateur déjà enregistré pour cette ressource") if (exists $allObjects{$objID}->{usrdata}->{$CONTENTS{sciperTodo}});
+
 		push @scipers, $CONTENTS{sciperTodo};
 
 		$Admins{$CONTENTS{sciperTodo}}->{$objID} = 1 if $CONTENTS{droit};
-		
-		addUser ({ 
-			sciper => $CONTENTS{sciperTodo}, 
-			droit  => $CONTENTS{admin}, 
+
+		addUser ({
+			sciper => $CONTENTS{sciperTodo},
+			droit  => $CONTENTS{admin},
 			obj_id => $objID,
 			mail   => $CONTENTS{mail},
 			});
 		print qq{
-			Nouveau droit de r�servation explicite pour : $dinfo{$CONTENTS{sciperTodo}}->{nom} ($CONTENTS{sciperTodo})<br>
+			Nouveau droit de réservation explicite pour : $dinfo{$CONTENTS{sciperTodo}}->{nom} ($CONTENTS{sciperTodo})<br>
 			<a href=$URLres/cons_obj?objID=$objID>retour sur la page de la ressource</a>
 		};
 		footpage ();
 	}
 
-	if ($CONTENTS{op} eq 'majusers') { # - 
+	if ($CONTENTS{op} eq 'majusers') { # -
 		print qq{<h3>Ressource : $obj->{nom}</h3>};
 		my %admins = map {$_, 1} split (/ /, $CONTENTS{admin});
 		my %access = map {$_, 1} split (/ /, $CONTENTS{acces});
 		my %mails  = map {$_, 1} split (/ /, $CONTENTS{mail});
 		my %scipers= map {$_, 1} split (/ /, $CONTENTS{scipers});
-		
+
 		if ($Admins{$CONTENTS{sciper}}->{$objID}) {	# - admin - no way out
 			$admins{$CONTENTS{sciper}} = 1  ;
 			$access{$CONTENTS{sciper}} = 1  ;
 		}
-		
+
 		my ($del, @todo);
 		if ($CONTENTS{del}) {	# - efface tous les droits explicites
 			$del  = join(',', map { $admins{$_} or $mails{$_} ? () : $_ } keys %scipers);
@@ -4249,24 +4249,24 @@ sub cons_obj {
 			my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
 			$sth->execute (($objID)) or die "database fatal error : execute : $DBI::errstr";
 			my $dels = join ('<br>', map { "$dinfo{$_}->{nom} $dinfo{$_}->{prenom} ($_)" if exists $dinfo{$_}->{nom}} split (/,/, $del));
-			print qq{<p><b>Droits explicites effac�s</b> :</p>$dels};
+			print qq{<p><b>Droits explicites effacés</b> :</p>$dels};
 		}
-		
+
 		if (@todo) {
-			print qq{<hr><p><b>Mise � jour des droits explicites</b> :</p>};
+			print qq{<hr><p><b>Mise à jour des droits explicites</b> :</p>};
 			foreach my $sciper (@todo) {
-				my $sql = qq{update users set droit=?,mail=? where obj_id=? and sciper=?};		
+				my $sql = qq{update users set droit=?,mail=? where obj_id=? and sciper=?};
 				my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
 				$sth->execute (($admins{$sciper}, $mails{$sciper}, $objID, $sciper)) or die "database fatal error : execute : $DBI::errstr";
-				print qq{<br>$dinfo{$sciper}->{nom} $dinfo{$sciper}->{prenom} ($sciper) : acc�s explicite};
+				print qq{<br>$dinfo{$sciper}->{nom} $dinfo{$sciper}->{prenom} ($sciper) : accès explicite};
 				print qq{, admin} if $admins{$sciper};
 				print qq{, mail}  if $mails{$sciper};
 			}
-		}		
-		
+		}
+
 		print qq{
 			<hr>
-			Mise � jour des droits explicites effectu�e<br>
+			Mise à jour des droits explicites effectuée<br>
 			<a href=$URLres/cons_obj?objID=$objID>retour sur la page de la ressource</a>
 		};
 		footpage ();
@@ -4294,18 +4294,18 @@ sub cons_obj {
 	<b>Description : </b>$obj->{descr}<br>
 	};
 	print qq{<b>Nb de ressources disponibles</b> : $obj->{pool}<br>} 				if ($obj->{pool} > 1);
-	print qq{<b>Nb max d'objets par r�servation</b> : $obj->{max_pool}<br>} if ($obj->{pool} > 1);
+	print qq{<b>Nb max d'objets par réservation</b> : $obj->{max_pool}<br>} if ($obj->{pool} > 1);
 	print qq{<b>Plan :</b> <a href="$URLplan?q=$obj->{plan}"><img src="/.icons/plan.gif" border="0">$obj->{plan}</a><br>} if $obj->{plan};
-	my $implicitTxt  = qq{<li>Unit�s: $unites</li>} 	 if $unites;
+	my $implicitTxt  = qq{<li>Unités: $unites</li>} 	 if $unites;
 		 $implicitTxt .= qq{<li>Groupes: $groupes</li>} if $groupes;
-		 $implicitTxt  = qq{aucun - seuls les comptes explicites ci-dessous ont acc�s} unless $implicitTxt;
+		 $implicitTxt  = qq{aucun - seuls les comptes explicites ci-dessous ont accès} unless $implicitTxt;
 	print qq{
-		<b>Droits d'acc�s implicites : </b>$implicitTxt<br>
+		<b>Droits d'accès implicites : </b>$implicitTxt<br>
 	};
-	print qq{<span style="color:red; font-weight: bold;">Ressource visible seulement pour les personnes enregistr�es explicitement</span><br>} if $obj->{hide};
+	print qq{<span style="color:red; font-weight: bold;">Ressource visible seulement pour les personnes enregistrées explicitement</span><br>} if $obj->{hide};
 	print qq{
-		<b>Visibilit� des r�servations : </b>$visible<br>
-		<b>Acc�s pour r�servations :</b> $access
+		<b>Visibilité des réservations : </b>$visible<br>
+		<b>Accès pour réservations :</b> $access
 	
 		<p></p>
 	};
@@ -4327,9 +4327,9 @@ sub cons_obj {
 	if ($Admins{$CONTENTS{sciper}}->{$objID}  or $superusers =~ /\b$CONTENTS{sciper}\b/) {
 		print qq{<p></p>
 			<input type="button" value="modifier la ressource" OnClick="javascript:location.href='$URLres/maj_obj?objID=$objID'">
-			<input type="button" value="effacer la ressource" OnClick="if (confirm('Effacer cette ressource et toutes les r�servations ?')) { javascript:location.href='$URLres/maj_obj?objID=$objID&op=del'}">
+			<input type="button" value="effacer la ressource" OnClick="if (confirm('Effacer cette ressource et toutes les réservations ?')) { javascript:location.href='$URLres/maj_obj?objID=$objID&op=del'}">
 			<hr>
-			<b>Autorisations d'acc�s par webservice</b> [ <a href="#" onclick="
+			<b>Autorisations d'accès par webservice</b> [ <a href="#" onclick="
 						if (confirm ('Annuler toutes les autorisations pour cette ressource ?')) {
 							location.href='$URLres/maj_token?objID=$objID&op=del_all'; 
 						}">Annuler toutes les autorisations</a> ]
@@ -4341,7 +4341,7 @@ sub cons_obj {
 		} if $IP_BASED_AUTH;
 		print qq{
 					<div style="width: 640px; margin-left: 10px;">Token</div>
-					<div style="width: 90px;margin-left: 10px;">Acc�s </div>
+					<div style="width: 90px;margin-left: 10px;">Accès </div>
 					<div style="width: 90px;margin-left: 10px;">Action</div>
 				</div>
 		};
@@ -4358,7 +4358,7 @@ sub cons_obj {
 					<div style="width: 640px; margin-left: 10px;">$token->{id}</div>
 					<div style="width: 90px; margin-left: 10px;">$token->{rights}</div>
 					<div style="width: 90px; margin-left: 10px;"><a href="#" onclick="
-						if (confirm ('Annuler l acc�s depuis cette adresse ?')) {
+						if (confirm ('Annuler l accès depuis cette adresse ?')) {
 							location.href='$URLres/maj_token?objID=$objID&op=del&tokenID=$token_id'; 
 						}">Annuler</a></div>
 				</div>
@@ -4371,7 +4371,7 @@ sub cons_obj {
 			<input type="hidden" name="op" value="add">
 			<div style="display: flex;">
 			 <div >	<b>Nouvelle autorisation</b></div>
-			 <div style="margin-left: 10px;">Acc�s : <select name="rights">
+			 <div style="margin-left: 10px;">Accès : <select name="rights">
 					<option value="RO" selected>RO</option>
 					<option value="RW">RW</option>
 					</select>
@@ -4388,7 +4388,7 @@ sub cons_obj {
 	<hr>
 	<form action=${thescript}/graph name=form method=POST>
 	<input name="objID" type="hidden" value="$objID">
-	<b>Graphique des r�servations</b>, date 
+	<b>Graphique des réservations</b>, date 
 	<input name="date1" id="date1" size="10" value="}.(sprintf "%02d/%02d/%4d",$mday,$mon,$year).qq{">
 	<a href="#" 
 		onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
@@ -4407,7 +4407,7 @@ sub cons_obj {
 	   print qq{
 	   <form action=${thescript}/pool_dispo name=form method=POST>
 	   <input name="objID" type="hidden" value="$objID">
-		V�rifier la <b>disponibilit�</b> des objets du pool de cette ressource
+		Vérifier la <b>disponibilité</b> des objets du pool de cette ressource
 		du <input name="date1" id="date1" size="10" value="}.(sprintf "%02d/%02d/%4d",$mday,$mon,$year).qq{">
 			<a href="#" onClick="
 				cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); 
@@ -4432,10 +4432,10 @@ sub cons_obj {
 			<h3>Gestion des utilisateurs pour cette ressource</h3>
 			<form action="$URLres/cons_obj?objID=$objID&op=adduser" method="post">
 			<ul id=indented>
-			<li><b>Nouvel utilisateur en acc�s explicite : </b><br>
+			<li><b>Nouvel utilisateur en accès explicite : </b><br>
 				sciper ou nom : <input name="sciperTodo" width="">,
 				<input type="checkbox" name="admin" value="1"> droits d'administrateur, 
-				<input type="checkbox" name="mail"  value="1"> confirmation par mail des r�servations  - 
+				<input type="checkbox" name="mail"  value="1"> confirmation par mail des réservations  - 
 				<input type="submit"   name="add"   value="ajouter">
 			</li>
 			</ul>
@@ -4445,7 +4445,7 @@ sub cons_obj {
 			<form name="form" action="$URLres/cons_obj?objID=$objID&op=majusers" method="post">
 			<table width="50%" border="0">
 			<th class="header_cell">admin
-			<th class="header_cell">acc�s
+			<th class="header_cell">accès
 			<th class="header_cell">notifications
 			<th class="header_cell">user
 		};
@@ -4470,8 +4470,8 @@ sub cons_obj {
 		print qq{
 			</table>
 			<p><b>Actions :</b></p>
-			Mise � jour pour la s�lection - <input name="maj" type="submit" value="enregistrer">
-			<p>Effacer tous les droits explicites non-admin et sans notification mail : <input name="del" type="submit" value="effacer" id="del" OnClick="return confirm('Effacer les acc�s explicites ?');">
+			Mise à jour pour la sélection - <input name="maj" type="submit" value="enregistrer">
+			<p>Effacer tous les droits explicites non-admin et sans notification mail : <input name="del" type="submit" value="effacer" id="del" OnClick="return confirm('Effacer les accès explicites ?');">
 		</form>
 		</div>
 		};
@@ -4590,9 +4590,9 @@ sub listcontacts {
 
 	my $admin_list;
 	print qq{
-	<h2>Gestion des r�servations </h2>
+	<h2>Gestion des réservations </h2>
 	<h3>contacts</h3>
-	<b>les administrateurs des ressources</b> � votre disposition
+	<b>les administrateurs des ressources</b> à votre disposition
 		<ul id="indented">
 	};
 	
@@ -4611,12 +4611,12 @@ sub listcontacts {
 	  }
 	}
 	
-	print qq{Retrouver la ressource qui vous int�resse et contacter un des administrateurs pour en obtenir
-	l'acc�s} unless $count;
+	print qq{Retrouver la ressource qui vous intéresse et contacter un des administrateurs pour en obtenir
+	l'accès} unless $count;
 
 	print qq{</ul>
 	<p></p>
-	<a href=mailto:$support><b>le support technique</b></a> pour remarques ou pour signaler un probl�me avec l'interface
+	<a href=mailto:$support><b>le support technique</b></a> pour remarques ou pour signaler un problème avec l'interface
 	};
 	
 	&footpage;	
@@ -4632,7 +4632,7 @@ sub res_header_NEW {
    print qq{<!DOCTYPE html>
 <html lang="en">
 <head>
-	<title>R�servations en ligne</title>
+	<title>Réservations en ligne</title>
 
 	<meta charset="utf-8" />
 	<meta name="description" content="" />
@@ -4659,7 +4659,7 @@ sub res_header_NEW {
 	 <link rel="stylesheet" href="/absresv2.css">
 	 <script src="/CalendarPopup.js" type="text/javascript"></script>
 
-    <title>r�servations@epfl</title> 
+    <title>réservations@epfl</title> 
 </head> 
 <body data-spy="scroll" data-target="#intermediate-nav" data-offset="0">
  
@@ -4678,7 +4678,7 @@ sub res_header_NEW {
   	
  	<div class="site-branding">
 		<a class="logo" href="https://www.epfl.ch/en/">
-		<img src="https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg" alt="Logo EPFL, �cole polytechnique f�d�rale de Lausanne" class="img-fluid">
+		<img src="https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg" alt="Logo EPFL, école polytechnique fédérale de Lausanne" class="img-fluid">
 		</a>
 <!-- 
 		<a class="logo-50" href="https://www.epfl.ch/campus/events/celebration-en/">
@@ -4686,7 +4686,7 @@ sub res_header_NEW {
 		</a>
  -->
 	</div>
-	<h1>R�servations en ligne</h1>
+	<h1>Réservations en ligne</h1>
 
 	<div class="dropdown dropright search d-none d-xl-block">
 		<a class="dropdown-toggle" href="#" data-toggle="dropdown">
@@ -4742,7 +4742,7 @@ sub res_header_NEW {
 
    print qq{
     <p></p>
-    <div class="redbox">*** ATTENTION : vous �tes sur une version de TEST ***</div>
+    <div class="redbox">*** ATTENTION : vous êtes sur une version de TEST ***</div>
    } if $DEBUG;
    
    print qq{
@@ -4779,13 +4779,13 @@ sub res_header {
 	 <script src="/CalendarPopup.js" type="text/javascript"></script>
 	</head>
 
-    <title>r�servations@epfl</title> 
+    <title>réservations@epfl</title> 
   </head> 
   <body> 
 
     <noscript>
 		<div class="redbox">
-		<p><b>attention : veuillez activer Javascript pour un acc�s complet � toutes les fonctions</b></p>
+		<p><b>attention : veuillez activer Javascript pour un accès complet à toutes les fonctions</b></p>
 		</div>
 	</noscript>
 	
@@ -4829,7 +4829,7 @@ sub res_header {
 
    print qq{
     <p></p>
-    <div class="redbox">*** ATTENTION : vous �tes sur une version de TEST ***</div>
+    <div class="redbox">*** ATTENTION : vous êtes sur une version de TEST ***</div>
    } if $DEBUG;
    
    print qq{
@@ -4927,7 +4927,7 @@ sub getAllUnits {
 	my ($sigle) = @_;
 
 	return unless $sigle;
-	erreur ("unit�s de niveau 2, 3 ou 4 seulement") if $sigle eq 'EPFL' or $sigle eq 'epfl';
+	erreur ("unités de niveau 2, 3 ou 4 seulement") if $sigle eq 'EPFL' or $sigle eq 'epfl';
 	my $sql = qq{SELECT sigle,id_unite,niveau from dinfo.unites1 where hierarchie like '% $sigle%' and date_fin = '0000-00-00 00:00:00' and (niveau = '4' or niveau = '3' or niveau = '2')};
 	my $sth = $db_dinfo->query($sql);
 
@@ -4974,7 +4974,7 @@ sub ical {
 
 	my $uid		= 'res'.time().$ENV{REMOTE_ADDR}.$res{sciper} ;
 
-	my $sum_txt = qq{EPFL R�servations : Salle : $allObjects{$res{obj_id}}->{objdata}->{nom}, $dinfo{$res{sciper}}->{nom} $dinfo{$res{sciper}}->{prenom}};
+	my $sum_txt = qq{EPFL Réservations : Salle : $allObjects{$res{obj_id}}->{objdata}->{nom}, $dinfo{$res{sciper}}->{nom} $dinfo{$res{sciper}}->{prenom}};
 	utf8::encode($sum_txt);
 	
 	my $periodic;
@@ -4996,7 +4996,7 @@ sub ical {
 	}
 
 	my $icaltxt = qq{BEGIN:VCALENDAR
-PRODID:Gestion des r�servations - VPSI
+PRODID:Gestion des réservations - VPSI
 VERSION:2.0
 BEGIN:VTIMEZONE
 TZID:Europe/Zurich
@@ -5034,12 +5034,12 @@ END:VCALENDAR
 
 #------
 sub maj_token {
-   erreur ("op�ration absente") unless $CONTENTS{op};
+   erreur ("opération absente") unless $CONTENTS{op};
    unless ($superusers =~ /\b$CONTENTS{sciper}\b/) {
 	   if ($CONTENTS{objID}) {
 	   	erreur ("pas de droits de gestion pour cette ressource") unless exists $Admins{$CONTENTS{sciper}}->{$CONTENTS{objID}};
 	   } else {
-	   	erreur ("pas de droits de gestion des objets de r�servation") unless exists $Admins{$CONTENTS{sciper}};
+	   	erreur ("pas de droits de gestion des objets de réservation") unless exists $Admins{$CONTENTS{sciper}};
 	   }
    }
    my $objTokens = get_obj_tokens ($CONTENTS{objID});
@@ -5053,9 +5053,9 @@ sub maj_token {
    
    if ($CONTENTS{op} eq 'del') {
 		erreur ("autorisation absente") unless $CONTENTS{tokenID};
-   	erreur ("autorisation pas trouv�e pour cette ressource") unless defined $objTokens->{$CONTENTS{tokenID}};
+   	erreur ("autorisation pas trouvée pour cette ressource") unless defined $objTokens->{$CONTENTS{tokenID}};
 # 		my ($obj_id, $host) = getAuth ($CONTENTS{tokenID}, $CONTENTS{objID});
-# 		erreur ("autorisation erron�e") unless $CONTENTS{objID} eq $obj_id;
+# 		erreur ("autorisation erronée") unless $CONTENTS{objID} eq $obj_id;
 
 		my ($obj_id, $ts) = getObjIDFromToken ($CONTENTS{tokenID});
 		erreur ( "wrong authorization for this ressource")  unless $obj_id eq $CONTENTS{objID};
@@ -5067,7 +5067,7 @@ sub maj_token {
    }
    
    if ($CONTENTS{op} eq 'add') {
-#		erreur ("adresse IP erron�e") if  $IP_BASED_AUTH and ! chkEPFLIP ( $CONTENTS{host} );
+#		erreur ("adresse IP erronée") if  $IP_BASED_AUTH and ! chkEPFLIP ( $CONTENTS{host} );
 		my $tokenID = makeToken ($CONTENTS{objID});
 		my $sql = qq{insert into tokens set id=?, obj_id=?, rights=?};
 		my $sth = $dbh->prepare( $sql ) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";

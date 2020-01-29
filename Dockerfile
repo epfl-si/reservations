@@ -197,5 +197,5 @@ RUN chmod a+x /home/dinfo/docker-entrypoint.sh
 # For logging to ELK with gelf
 RUN touch /var/log/apache2/access.log && touch /var/log/apache2/error.log && ln -sf /proc/self/fd/1 /var/log/apache2/access.log && ln -sf /proc/self/fd/2 /var/log/apache2/error.log
 
-# USER dinfo
+USER dinfo
 ENTRYPOINT ["/home/dinfo/docker-entrypoint.sh"]
