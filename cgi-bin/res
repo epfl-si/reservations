@@ -34,6 +34,7 @@ my $version	   = 'Feb 2019';
 
 my $WEB2018		= 1;
 
+$ENV {SERVER_NAME} = $ENV {SITE_URL} if ($ENV {SERVER_NAME} eq '127.0.0.1' && $ENV {SITE_URL});
 $URLres				= "${RES_HOME}/cgi-bin/res";
 $URLplan			= "https://plan.epfl.ch/";
 $support			= '1234@epfl.ch';
@@ -301,7 +302,7 @@ sub pool_dispo {
 #_________
 sub list_res {
 
-	print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
+	print qq{Content-Type: text/html; charset=utf-8\n\n};
 
 	print qq{
 	<html>
@@ -4627,7 +4628,7 @@ sub res_header_NEW {
 
    return if $HEADER_DONE;
    
-   print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
+   print qq{Content-Type: text/html; charset=utf-8\n\n};
 
    print qq{<!DOCTYPE html>
 <html lang="en">
@@ -4763,7 +4764,7 @@ sub res_header {
 	 
    return if $HEADER_DONE;
 
-   print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
+   print qq{Content-Type: text/html; charset=utf-8\n\n};
 
 	 if (	$pathinfo =~ /getUserAccreds/ ) {
 	 	$HEADER_DONE = '1';
