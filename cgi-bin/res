@@ -2814,7 +2814,7 @@ sub add_res {
    }
    print " - <font color=red><b>attention:</b> la date limite pour les réservations est le : <b>" . &rev_date($LAST_DATE,1) . qq{</b></font>};
    if ($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} and $allObjects{$CONTENTS{objID}}->{objdata}->{datedeb} ne '0000-00-00') {
-   	print qq{<br><span style="color:red;">La ressource est inaccessible du }.rev_date($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}).' au '.rev_date($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}).qq{</span>};
+   	print qq{<br><span style="color:red;">La ressource est inaccessible du }.rev_date($allObjects{$CONTENTS{objID}}->{objdata}->{datedeb}).' au '.rev_date($allObjects{$CONTENTS{objID}}->{objdata}->{datefin}).qq{</span>};
    }
 
    my $indispd1 = rev_date($userObjects{$CONTENTS{objID}}->{objdata}->{datedeb});
