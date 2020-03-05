@@ -4,8 +4,7 @@
 $ABS_HOME		= 'https://absences.epfl.ch';
 $RES_HOME		= 'https://reservations.epfl.ch';
 
-$URL_CSO		= 'https://search.epfl.ch/compoundDirectory.do';
-$abs_path    	= '/var/www/vhosts/reservations.epfl.ch/';
+$abs_path   = '/var/www/vhosts/reservations.epfl.ch/';
 $URLabs			= "${ABS_HOME}/cgi-bin/abs";
 $URLres			= "${RES_HOME}/cgi-bin/res";
 #==============================================================
@@ -31,20 +30,20 @@ $DATE  				= 'ponctuelle';
 $DAILY 				= 'quotidienne';
 $HEBDO 				= 'chaque';
 $FIRST 				= 'le 1er';
-$SEC   				= 'le 2Ã¨me';
-$TROIS 				= 'le 3Ã¨me';
-$QUATRE 			= 'le 4Ã¨me';
+$SEC   				= 'le 2ème';
+$TROIS 				= 'le 3ème';
+$QUATRE 			= 'le 4ème';
 $BIHEBDO 			= 'toutes les deux semaines';
 $TRIHEBDO 		= 'toutes les trois semaines';
 $LAST  				= 'le dernier';
 %periodics  	= (
 	$HEBDO,		'chaque', 
 	$FIRST,		'le 1er', 
-	$SEC,		'le 2Ã¨me', 
-	$TROIS,		'le 3Ã¨me', 
-	$QUATRE, 	'le 4Ã¨me',
-	$BIHEBDO, 	'toutes les deux semaines',
-	$TRIHEBDO, 	'toutes les trois semaines',
+	$SEC,			'le 2ème', 
+	$TROIS,		'le 3ème', 
+	$QUATRE, 	'le 4ème',
+	$BIHEBDO, 'toutes les deux semaines',
+	$TRIHEBDO,'toutes les trois semaines',
 	$LAST,		'le dernier', 
 	);
 
@@ -61,17 +60,17 @@ $LAST  				= 'le dernier';
 @mois_noms = (
 	'',
 	'Janvier',
-	'FÃ©vrier',
+	'Février',
 	'Mars',
 	'Avril',
 	'Mai',
 	'Juin',
 	'Juillet',
-	'AoÃ»t',
+	'Août',
 	'Septembre',
 	'Octobre',
 	'Novembre',
-	'DÃ©cembre',
+	'Décembre',
 	);
 # @years = (2000..2012);
 # $MAXDATE = '20300101';
@@ -125,38 +124,12 @@ sub loadargs {
 
 }
 
-#_____________
-sub dbconnect {
-	my ($dbkey) = @_;
-	
-	my $dbconf_file = '/opt/dinfo/etc/dbs.conf';
-	die "people :: dbconnect : ERR OPEN $dbconf_file [$!]" unless (open (DBCONF, "$dbconf_file")) ;
-	my ($dbname, $dbhost, $dbuser, $dbpwd) ;
-	while (<DBCONF>) {
-		chomp;
-		next if $_ =~ /^#/;	# - comments
-		$_ =~ s/\t+/\t/g;
-		next unless $_;
-		my @items = split /\t/, $_;
-		next unless $items[0] eq $dbkey;
-		$dbname = $items[1];
-		$dbhost = $items[2];
-		$dbuser = $items[3];
-		$dbpwd = $items[4];
-		last;
-	}
-	close DBCONF;
-
-	die "dbconnect : ERR DB CONFIG : $dbname, $dbhost, $dbuser" unless ($dbname and $dbhost and $dbuser and $dbpwd) ;
-	my $dsndb    = qq{dbi:mysql:$dbname:$dbhost:3306}; 
-warn "--> dbconnect : $dsndb" if $verbose;
-
-	my $dbh = DBI->connect ($dsndb, $dbuser, $dbpwd);
-	$dbh->{'mysql_enable_utf8'} = 1;
-
-	die "dbconnect : ERR DBI CONNECT : $dbhost, $dbname, $dbuser" unless $dbh;
-	
-	return $dbh;
+sub dbquery {
+	my ($sql, @params) = @_;
+	return unless sql;
+	my $sth = $dbh->prepare( $sql ) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
+		 $sth->execute (@params) 			or die "database fatal error : execute : $DBI::errstr";
+	return $sth;
 }
 
 #_____________
@@ -165,7 +138,7 @@ sub erreur {
 
   return unless $messg;
 warn "erreur [$CONTENTS{sciper}] :: $messg\n";
-  &res_header if ($HEADER_DONE eq '');
+  &header if ($HEADER_DONE eq '');
   printf "<p><font color=\"red\"><b>Erreur</b></font> - %s</p>", $messg;
   &footpage;
 }
@@ -190,7 +163,7 @@ sub check_date {
 		$tyear= substr ($date, 0, 4);
 	}
 	
-	erreur ("date vide ou format erronÃ©") unless $tday and $tmon and $tyear;
+	erreur ("date vide ou format erroné") unless $tday and $tmon and $tyear;
 	
 	$date = sprintf "%4d%02d%02d", $tyear, $tmon, $tday;
 	my $i    = 0;
@@ -209,9 +182,9 @@ sub check_date {
 	  $m = $i;
    	}
 
-	erreur ("erreur de date - mois erronÃ©: $d, $m, $y")   if $m <= 0 or $m > 12 ;
-	erreur ("erreur de date - annÃ©e erronÃ©e: $d, $m, $y") if $y <= 0 ;
-	erreur ("erreur de date - jour erronÃ©: $d, $m, $y")   if $d <= 0 or $d > $mois[$m] ;
+	erreur ("erreur de date - mois erroné: $d, $m, $y")   if $m <= 0 or $m > 12 ;
+	erreur ("erreur de date - année erronée: $d, $m, $y") if $y <= 0 ;
+	erreur ("erreur de date - jour erroné: $d, $m, $y")   if $d <= 0 or $d > $mois[$m] ;
 
 	return sprintf "%4d%02d%02d", $y, $m, $d;
 }
@@ -276,10 +249,10 @@ sub rev_date {
 	 			$ts_txt = $lang eq 'en' ? 'noon' : 'midi';
 	 		}
 	 		if ($ts eq $mid_day) {
-	 			$ts_txt = $lang eq 'en' ? 'afternoon' : 'aprÃ¨s-midi';
+	 			$ts_txt = $lang eq 'en' ? 'afternoon' : 'après-midi';
 	 		}
 	 		if ($ts eq $end_day) {
-	 			$ts_txt = $lang eq 'en' ? 'end workday' : 'fin journÃ©e';
+	 			$ts_txt = $lang eq 'en' ? 'end workday' : 'fin journée';
 	 		}
 	 		my $date_name = substr(get_day_name (substr($date, 0, 8)), 0, 3);
 	 		my $date_name = uc(substr($date_name,0,1)). substr($date_name,1,2);
@@ -305,7 +278,7 @@ sub get_crt_day {
 }
 
 #_____________
-sub get_week_nb { # numÃ©ro de semaine
+sub get_week_nb { # numéro de semaine
 	my ($date) = @_;
 
 return unless $date;
@@ -316,7 +289,7 @@ return unless $date;
 }
 
 #_____________
-sub isleap { # bissextile Ã  bascule
+sub isleap { # bissextile à bascule
  my $year = $_[0];
  return (($year % 400 == 0) || ($year % 4 == 0 && $year % 100 != 0))
 }
@@ -565,14 +538,10 @@ sub checkLDAP {
 #_____________
 sub mailto {
   my ($dest, $subj, $msg) = @_;
-
 warn "absres :: tools.pl : mailto :DEBUG=$DEBUG: dest=$dest, subj=$subj=";
-#  use Net::LDAP;
-#  $ldap  = Net::LDAP->new('ldap.epfl.ch') or erreur ("new LDAP : $!");
 
   my %mail;
   $mail{From} 	 = $generic_mail; 
-#  $mail{Cc}   	 = $support;
   
   my $to;
   my $errmail;
@@ -603,10 +572,10 @@ warn "absres :: tools.pl : mailto :DEBUG=$DEBUG: dest=$dest, subj=$subj=";
   }
 
   print qq{
-		<hr>Cette information a Ã©tÃ© transmise Ã : $to
+		<hr>Cette information a été transmise à: $to
   };
   print qq{
-  <p><b>Note </b> - adresse(s) invalide(s) ou inexistante(s) : $errmail<br>Veuillez effectuer les corrections sur votre fiche de remplacements ou vos donnÃ©es personnelles</p>
+  <p><b>Note </b> - adresse(s) invalide(s) ou inexistante(s) : $errmail<br>Veuillez effectuer les corrections sur votre fiche de remplacements ou vos données personnelles</p>
   } if $errmail;
 }
 
@@ -634,8 +603,7 @@ sub get_obj_tokens {
 
 	my $objTokens;
 	my $sql = qq{select * from tokens where obj_id=? };
-	my $sth = $dbh->prepare( $sql ) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($objID)) 		or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql, $objID);
 	while (my $data = $sth->fetchrow_hashref) { 
 		$objTokens->{$data->{id}} = $data;
 	}	
@@ -699,9 +667,8 @@ sub getObjRes {
   	res.id=dates.res_id and
   	res.obj_id = ?  	
   };
+	my $sth = dbquery($sql, $d1, $d2, $objID);
 
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($d1, $d2, $objID)) or die "database fatal error : execute : $DBI::errstr";
   while (my $data = $sth->fetchrow_hashref) {
 
 		unless ($data->{unite}) {
@@ -742,8 +709,8 @@ sub getObj {
 
   my %obj;
   my $sql = qq{select * from obj where id in ('$ids')};
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute () or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql);
+
   while (my $data = $sth->fetchrow_hashref) {
   	$obj{$data->{id}}->{objdata} = $data;
   }
@@ -900,9 +867,8 @@ sub getRes {
   	res.id = ?
   	order by date
   };
+	my $sth = dbquery($sql, $res_id);
 
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($res_id)) or die "database fatal error : execute : $DBI::errstr";
   while (my $data = $sth->fetchrow_hashref) {
 	%item = (
 		res_id	=> $data->{id},
@@ -949,8 +915,8 @@ sub getUserData {
   left outer join dinfo.allunits on dinfo.allunits.id_unite=dinfo.accred.unite
   where  dinfo.sciper.sciper='$scipertodo' order by dinfo.accred.ordre
   };
+	my $sth = $db_dinfo->query($sql);
 
-  my $sth = $db_dinfo->query($sql);
   while (my ($sciper, $nom_acc, $prenom_acc, $nom_usuel, $prenom_usuel, $addrlog, $ordre, $id_unite, $sigle) = $sth->fetchrow) {
   	next unless $sciper;
 		my $nom    = $nom_usuel    ? $nom_usuel    : $nom_acc ;
@@ -959,13 +925,13 @@ sub getUserData {
 #		$allUnitsUsers{$sigle}->{$sciper} = 1;
 		$allUnitsUsers{$id_unite}->{$sciper} = 1;
 #		$allUsersUnits{$sciper}->{$sigle} = 1;
-		$dinfo{$sciper}	= {
+		$dinfo->{$sciper}	= {
 			nom			=> $nom,
 			prenom 	=> $prenom,
 			email 	=> $addrlog,
-		} unless defined $dinfo{$sciper};
-		if (defined $dinfo{$sciper}) {
-			$dinfo{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
+		} unless defined $dinfo->{$sciper};
+		if (defined $dinfo->{$sciper}) {
+			$dinfo->{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
 		}
   }
 
@@ -975,11 +941,8 @@ sub getUserData {
 sub logger {
   my ($obj_id, $res_id, $msg) = @_;
   return unless $msg;
-
   my $sql = qq{insert into logs set sciper=?, obj_id=?, res_id=?, msg=?  };
-  my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($CONTENTS{sciper}, $obj_id, $res_id, $msg)) or die "database fatal error : execute : $DBI::errstr";
-
+	my $sth = dbquery($sql, $CONTENTS{sciper}, $obj_id, $res_id, $msg);
 }
 
 #___________________

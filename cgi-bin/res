@@ -17,6 +17,7 @@ BEGIN {
 
 use lib '/opt/dinfo/lib/perl';
 
+use utf8;
 use DBI;
 use GD::Simple;
 use File::stat;
@@ -27,13 +28,13 @@ use Data::Dumper;
 use Cadi::Groups;
 use Tequila::Client;
 
+binmode (STDOUT, ':utf8');
+
 require 'res-tools.pl';
 
 #---------------------------------------------------------
-my $version	   = 'Feb 2019';
+my $version	   = 'Mar 2020';
 #---------------------------------------------------------
-
-my $WEB2018		= 1;
 
 $URLres				= "${RES_HOME}/cgi-bin/res";
 $URLplan			= "https://plan.epfl.ch/";
@@ -82,15 +83,16 @@ if ($DEBUG) {
 	$URLres	  = "${RES_HOME}/cgi-bin/res";
 }
 
-my $NOTIFYUSER 	= '';
+my $NOTIFYUSER 	= 0;
+my $USE_CALLBACK= 1;
 
 #	---------
 $login_as 			= '118873';
 $login_as 			= '276008';
 $login_as 			= '276008';
-$login_as 			= '109324';
 $login_as 			= '136108';
 $login_as 			= '140973';
+$login_as 			= '109324';
 #	---------
 	
 %CONTENTS  			= &loadargs ();
@@ -116,17 +118,17 @@ use vars qw( $allObjects $allUnitsUsers @allunits $userObjects $res $dinfo $dbh 
  my $Groupes = new Cadi::Groups (
  	caller => '104782', 
  );
-
+    
 my $LAST_DATE  = get_next_n_day($crt_date, 730);	# - res max 2 ans à l'avance
 
 list_res ()  if $pathinfo =~ /^\/list_res/;
 
 unless ($pathinfo) {
   unless ($CONTENTS{login}) {
-	unless (isAuth ()) {	#	- consultation simple
-		initData ();
-		main () ;
-	}
+		unless (isAuth ()) {	#	- consultation simple
+			initData ();
+			main () ;
+		}
   }
 };
 
@@ -163,7 +165,7 @@ exit;
 #----
 sub initData {
 
-	&res_header ()   unless $pathinfo =~ /(^\/extract|^\/image|^\/flag_mail|^\/ical)/;
+	&header ()   unless $pathinfo =~ /(^\/extract|^\/image|^\/flag_mail|^\/ical)/;
 	
 	getObjects ();
 
@@ -206,25 +208,25 @@ sub dispatch {
 	&gestion 	   	if $pathinfo =~ /^\/gestion/;
 	&graph 		  	if $pathinfo =~ /^\/graph/;
 	&help  		   	if $pathinfo =~ /^\/hel/;
-	&ical	 	   		if $pathinfo =~ /^\/ical/;
-	&image	 	   	if $pathinfo =~ /^\/image/;
-	&import_users  if $pathinfo =~ /^\/import_users/;
-	&listconflicts if $pathinfo =~ /^\/listconflicts/;
-	&listcontacts  if $pathinfo =~ /^\/listcontacts/;
-	&listobj	   if $pathinfo =~ /^\/listobj/	;
-	&listres	   if $pathinfo =~ /^\/listres/	;
-	&logs		   	 if $pathinfo =~ /^\/logs/	;
-	&maj_obj 	   if $pathinfo =~ /^\/maj_obj/	;
-	&mod_res 	   if $pathinfo =~ /^\/mod_res/;
-	&news  		   if $pathinfo =~ /^\/news/;
-	&popup 		   if $pathinfo =~ /^\/popup/;
-	&register	   if $pathinfo =~ /^\/register/;
-	&search		   if $pathinfo =~ /^\/search/;
+	&ical	 	   			if $pathinfo =~ /^\/ical/;
+	&image	 	   		if $pathinfo =~ /^\/image/;
+	&import_users   if $pathinfo =~ /^\/import_users/;
+	&listconflicts  if $pathinfo =~ /^\/listconflicts/;
+	&listcontacts   if $pathinfo =~ /^\/listcontacts/;
+	&listobj	   		if $pathinfo =~ /^\/listobj/	;
+	&listres	   		if $pathinfo =~ /^\/listres/	;
+	&logs		   	 		if $pathinfo =~ /^\/logs/	;
+	&maj_obj 	   		if $pathinfo =~ /^\/maj_obj/	;
+	&mod_res 	   		if $pathinfo =~ /^\/mod_res/;
+	&news  		   		if $pathinfo =~ /^\/news/;
+	&popup 		   		if $pathinfo =~ /^\/popup/;
+	&register	   		if $pathinfo =~ /^\/register/;
+	&search		   		if $pathinfo =~ /^\/search/;
+	&pool_dispo	   	if $pathinfo =~ /^\/pool_dispo/;
+	&maj_token	   	if $pathinfo =~ /^\/maj_token/;
+	&getUserAccreds if $pathinfo =~ /^\/getUserAccreds/;
 
-	&pool_dispo	   if $pathinfo =~ /^\/pool_dispo/;
-	&maj_token	   if $pathinfo =~ /^\/maj_token/;
-
-	&getUserAccreds	 if $pathinfo =~ /^\/getUserAccreds/;
+	&majCallBack	  if $pathinfo =~ /^\/majCallBack/;
 
 	&main ();
 
@@ -312,7 +314,7 @@ sub pool_dispo {
 #_________
 sub list_res {
 
-	print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
+	print qq{Content-Type: text/html; charset=utf-8\n\n};
 
 	print qq{
 	<html>
@@ -409,8 +411,7 @@ warn ">> getAllObjects : start\n";
   @commonUnits = @allunits;
 
   my $sql = qq{select * from users left join obj on obj.id=users.obj_id  };
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute () or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql);
 
   while (my $data = $sth->fetchrow_hashref) {
 		if ($scipertodo) {
@@ -442,8 +443,8 @@ sub getObjects {
   my ($commonUnits, $commonUsers) ; 
 
   my $sql = qq{select * from obj };
-  my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute () or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql);
+
   while (my $data = $sth->fetchrow_hashref) {
   	next unless $data->{id};
 		$allObjects->{$data->{id}}->{objdata} 	= $data;
@@ -474,8 +475,8 @@ sub getObjects {
 		}
   }
   my $sql = qq{select * from users left join obj on obj.id=users.obj_id };
-  my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute () or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql);
+
   while (my $data = $sth->fetchrow_hashref) {
   	next unless $data->{sciper};
 		$allObjects->{$data->{id}}->{usrdata}->{$data->{sciper}}->{droit} = $data->{droit};
@@ -648,8 +649,8 @@ sub addUser {
   erreur ("pas de droits d'administration", 1) unless scalar %{$Admins->{$CONTENTS{sciper}}};
 
   my $sql = qq{select sciper from users where sciper=? and obj_id=?};
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($sciper,$obj_id)) or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql, $sciper, $obj_id);
+
   return if $sth->fetchrow_array;
 
   my $sql = qq{
@@ -659,8 +660,8 @@ sub addUser {
 		droit=?,
 		mail=?
 	};
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($sciper,$obj_id,$droit,$mail)) or die "database fatal error : execute : $DBI::errstr";
+	dbquery($sql, $sciper, $obj_id, $droit, $mail);
+
   my $droitTxt = $droit eq 'A' 
   							? 'administrateur' 
   							: $droit eq 'R'
@@ -695,8 +696,8 @@ sub majUser {
   erreur ("pas de droits d'administration", 1) unless scalar %{$Admins->{$CONTENTS{sciper}}};
 
   my $sql = qq{select sciper from users where sciper=? and obj_id=?};
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($sciper,$obj_id)) or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql, $sciper, $obj_id);
+
   unless ($sth->fetchrow_array) {
 	  my $sql = qq{
 		insert into users set 
@@ -705,15 +706,14 @@ sub majUser {
 			droit=?,
 			mail=?
 		};
-	  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	  $sth->execute (($sciper,$obj_id,$droit,$mail)) or die "database fatal error : execute : $DBI::errstr";
+		dbquery($sql, $sciper, $obj_id, $droit, $mail);
+
 	  logger ($obj_id, '', qq{add user $sciper [droits=$droit, mail=$mail] par $CONTENTS{sciper}}) ; 
 	  return;
   }
 
   my $sql = qq{update users set droit=?,mail=? where sciper=? and obj_id=?};
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($droit,$mail,$sciper,$obj_id)) or die "database fatal error : execute : $DBI::errstr";
+	dbquery($sql, $droit, $mail, $sciper, $obj_id);
 
   my $droitTxt = $droit eq 'A' 
   							? 'administrateur' 
@@ -745,13 +745,13 @@ sub delUser {
   erreur ("pas de droits d'administration", 1) unless exists $Admins->{$CONTENTS{sciper}}->{$objID};
   
   my $sql = qq{select sciper from users where sciper=? and obj_id=?};
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($sciper,$objID)) or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql, $sciper, $objID);
+
   return unless ($sth->fetchrow_array);
 
   my $sql = qq{delete from users where sciper=? and obj_id=?};
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($sciper,$objID)) or die "database fatal error : execute : $DBI::errstr";
+	dbquery($sql, $sciper, $objID);
+
   my $msg = qq{
   Bonjour,
   
@@ -829,19 +829,13 @@ sub majObject {
 		};
 		
 	}
-
-	my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($nom,$pool,$max_pool,$descr,$disp,$visible,$datedeb,$datefin,$unites,$groupes,$plan,$hide)) or die "database fatal error : execute : $DBI::errstr";
+	dbquery($sql, $nom, $pool, $max_pool, $descr, $disp, $visible, $datedeb, $datefin, $unites, $groupes, $plan, $hide);
 
 	unless ($obj_id) {
 		$sql = qq{select LAST_INSERT_ID() from obj};
-		my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute () or die "database fatal error : execute : $DBI::errstr";
-		
+		my $sth = dbquery($sql);
+	
 		($obj_id) = $sth->fetchrow_array;
-		
-		# - add first admin
-		
 		addUser ({ 
 			sciper => $CONTENTS{sciper}, 
 			droit  => 'A', 
@@ -883,8 +877,7 @@ sub delObject {
 	my $plan		= $item->{plan};
 
 	my $sql = qq{select * from res where obj_id=?};
-	my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($objID)) or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql, $objID);
 	my $resIDs;
 	while (my $data = $sth->fetchrow_hashref) {
 		$resIDs .= "$data->{id},";
@@ -894,13 +887,11 @@ sub delObject {
 	if ($resIDs) {
 		# - del dates
 		my $sql = qq{delete from dates where res_id in ($resIDs)};
-		my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute () or die "database fatal error : execute : $DBI::errstr";
+		dbquery($sql);
 
 		# - del res
 		my $sql = qq{delete from res where id in ($resIDs)};
-		my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute () or die "database fatal error : execute : $DBI::errstr";
+		dbquery($sql);
 	}
 	
 	my $msg = qq{
@@ -910,13 +901,11 @@ sub delObject {
 	
 	# - del user access
 	my $sql = qq{delete from users where obj_id=?};
-	my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($objID)) or die "database fatal error : execute : $DBI::errstr";
+	dbquery($sql, $objID);
 
 	# - del obj
 	my $sql = qq{delete from obj where id=?};
-	my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($objID)) or die "database fatal error : execute : $DBI::errstr";
+	dbquery($sql, $objID);
 
 	logger ($objID, '', qq{delObject $nom [$objID] par $CONTENTS{sciper}}) ; 
 		
@@ -929,8 +918,7 @@ sub notifyUsers {
 	
 	# - alert users
 	my $sql = qq{select * from users where obj_id=? and mail=1};
-	my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($objID)) or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql, $objID);
 	my $mails;
 	while (my $data = $sth->fetchrow_hashref) {
 		$mails .= "$dinfo->{$data->{sciper}}->{email}," if $dinfo->{$data->{sciper}}->{email};
@@ -944,9 +932,9 @@ sub notifyUsers {
 
 #----
 sub addRes {
-    my ($res) = @_;
-    
-    return unless $res;
+	my ($res) = @_;
+	
+	return unless $res;
 
 	my $nom 		= $res->{nom};
 	my $obj_id 	= $res->{objID};
@@ -980,21 +968,25 @@ sub addRes {
 		maj=now(),
 		maj_by=?
 	};
-	my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($nom,$descr,$datedeb,$datefin,$obj_id,$sciper,$periodic,$jour,$hdeb,$hfin,$unite,$pool,$CONTENTS{sciper})) or die "database fatal error : execute : $DBI::errstr";
+	dbquery($sql, $nom,$descr,$datedeb,$datefin,$obj_id,$sciper,$periodic,$jour,$hdeb,$hfin,$unite,$pool,$CONTENTS{sciper});
+
 	$sql = qq{select LAST_INSERT_ID() from res};
-	my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute () or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql);
+
 	my ($res_id) = $sth->fetchrow_array;
 	
 	foreach my $date (@$dates) {
 		next unless $date and $res_id;
 #		next if $date lt $start_date;
 		$date = substr($date,0,4).'-'.substr($date,4,2).'-'.substr($date,6,2);
-		$sql = qq{insert into dates set	res_id=?, date=?};
-		$sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($res_id,$date)) or warn "database fatal error : $obj_id,$res_id : $hdeb,$hfin : $DBI::errstr";
+		$sql  = qq{insert into dates set	res_id=?, date=?};
+		dbquery($sql, $res_id, $date);
 	} 
+
+	callBack ({
+		action => 'renew',
+		res	 	 => $res,
+	});
 	
 	logger ($obj_id, $res_id, qq{new res : $nom : $CONTENTS{sciper} $unite [$userObjects->{$obj_id}->{objdata}->{nom}, $periodic, $jour, $hdeb-$hfin]});
 
@@ -1029,11 +1021,13 @@ Votre système de gestion des réservations
 
 #----
 sub majRes {
-    my ($res) = @_;
-    return unless $res;
+	my ($res) = @_;
+	return unless $res;
 
-    my $res_id = $res->{res_id};
-    my %old_res = getRes ($res_id);
+warn ">> majRes\n";
+
+	my $res_id = $res->{res_id};
+	my %old_res = getRes ($res_id);
 	erreur ("réservation pas trouvée") unless scalar %old_res;
 
 	my $nom 		= $res->{nom};
@@ -1057,13 +1051,13 @@ sub majRes {
 #		$datefin = substr($datefin,0,4).'-'.substr($datefin,4,2).'-'.substr($datefin,6,2);
 
 		my $sql = qq{delete from dates where res_id=? and date >= ? };
-		my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($res_id, $datedeb)) or die "database fatal error : execute : $DBI::errstr";
+		dbquery($sql, $res_id, $datedeb);
+	
 	} else {
 		# - del old dates
 		my $sql = qq{delete from dates where res_id=?};
-		my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($res_id)) or die "database fatal error : execute : $DBI::errstr";
+		dbquery($sql, $res_id);
+		$CONTENTS{op} = 'maj';
 	}
 
 	# - update res	
@@ -1084,17 +1078,21 @@ sub majRes {
 		maj_by=?
 		where id=?
 	};
-	my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($nom,$descr,$datedeb,$datefin,$obj_id,$sciper,$periodic,$jour,$hdeb,$hfin,$unite,$pool,$CONTENTS{sciper},$res_id)) or die "database fatal error : execute : $DBI::errstr";
+	dbquery($sql, $nom,$descr,$datedeb,$datefin,$obj_id,$sciper,$periodic,$jour,$hdeb,$hfin,$unite,$pool,$CONTENTS{sciper},$res_id);
+
 	# - add dates
 	foreach my $date (@$dates) {
 		next unless $date and $res_id;
 #		next if $date lt $start_date;
 		$date = substr($date,0,4).'-'.substr($date,4,2).'-'.substr($date,6,2);
-		$sql = qq{insert into dates set	res_id=?, date=?};
-		$sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($res_id,$date)) or warn "database fatal error : $obj_id,$res_id : $hdeb,$hfin : $DBI::errstr";
+		$sql  = qq{insert into dates set	res_id=?, date=?};
+		dbquery($sql, $res_id, $date);
 	} 
+
+	callBack ({
+		action => $CONTENTS{op},
+		res	 	 => $res,
+	});
 	
 	logger ($obj_id, $res_id, qq{maj res : $nom : $CONTENTS{sciper} [$userObjects->{$obj_id}->{objdata}->{nom},$periodic,$jour,$hdeb-$hfin]});
 
@@ -1251,8 +1249,8 @@ sub getPeriodicUserRes {
   };
 
   my $userres;
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($sciper)) or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql, $sciper);
+
   while (my $data = $sth->fetchrow_hashref) {
   	next if $data->{periodic} eq 'ponctuelle';
   	my $rsrv = $userres->{$data->{id}};
@@ -1294,9 +1292,8 @@ sub getAllRes {
 
   $sql .= qq{ and	res.obj_id in ('$objects') };
   $sql .= $CONTENTS{sortbyhour} ? qq{order by date,hdeb,obj_id} : qq{order by date,obj_id,hdeb};
+	my $sth = dbquery($sql, $d1, $d2);
 
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($d1, $d2)) or die "database fatal error : execute : $DBI::errstr";
   while (my $data = $sth->fetchrow_hashref) {
 	my $item = {
 		res_id	=> $data->{id},
@@ -1941,7 +1938,7 @@ sub main_graph{
 
   my ($dd1, $dd2) = split(/\t/, &periode($jj, $mm, $aa, $graph_type));
   
-  &res_header () ;
+  &header () ;
   
   if ($graph_type eq 'M') {
      $file_name  = time().'_'.$aa.'M'.$mm;
@@ -2298,18 +2295,12 @@ sub image {
   }
 #------------------ afficher reservation  ---------------------
   if (($out = &where_is ($x, $y, @map_res))    ne '') {
-	  &res_header;
+	  &header;
 	  if (scalar @$out == 1) {
 			$CONTENTS{res_id} = $out->[0];
 			&disp_res ();
 		} else {
-			print qq{<h3>Réservations multiples $userObjects->{$objID}->{objdata}->{nom}</h3>};
-
-			my $res_ids = join ',', @$out;
-			my $sql = qq{select * from res where id in ($res_ids) };
-			my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-			$sth->execute () or die "database fatal error : execute : $DBI::errstr";
-			print qq{
+			print qq{<h3>Réservations multiples $userObjects->{$objID}->{objdata}->{nom}</h3>
 			<br>
 			<table style="width:50%;">
 				<tr style="font-weight: bold;">
@@ -2318,6 +2309,9 @@ sub image {
 				<th>Début
 				<th>Fin
 			};
+			my $res_ids = join ',', @$out;
+			my $sql = qq{select * from res where id in ($res_ids) };
+			my $sth = dbquery($sql);
 			while (my $data = $sth->fetchrow_hashref) {
 				print qq{<tr>
 					<td><a href="$thescript/disp_res?res_id=$data->{id}">$data->{nom}</a>
@@ -2400,9 +2394,8 @@ sub checkConflicts {
 		res.obj_id in ($objects)
 		order by date,obj_id,hdeb
 	};
+	my $sth = dbquery($sql, $date);
 
-  my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute (($date)) or die "database fatal error : execute : $DBI::errstr";
   my ($crtdate, $crthdeb, $crtobj, $crthfin, $crtres, $crtscip, $crtnom,$pool);
   while (my $data = $sth->fetchrow_hashref) {
   	  next if $userObjects->{$data->{obj_id}}->{objdata}->{pool} > 1;	#	- skip pools
@@ -2468,8 +2461,8 @@ sub resConflict {
 			res.obj_id = ?
 			order by date,hdeb
 		};
-		my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($date, $objID)) or die "database fatal error : execute : $DBI::errstr";
+		my $sth = dbquery($sql, $date, $objID);
+
 		while (my $data = $sth->fetchrow_hashref) {
 			next if $res_id == $data->{res_id};
 			if (
@@ -2560,8 +2553,8 @@ sub resConflict_OLD {
 		res.obj_id = ?
 		order by date,hdeb
 		};
-		my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($date, $objID)) or die "database fatal error : execute : $DBI::errstr";
+		my $sth = dbquery($sql, $date, $objID);
+
 		while (my $data = $sth->fetchrow_hashref) {
 			next if $res_id == $data->{res_id};
 			if (
@@ -2631,17 +2624,20 @@ sub mod_res {
      &disp_res($res_id, 1);
      my $sciper = $res{sciper};
 
-	 my $sql = qq{delete from dates where res_id=?};
-	 my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	 $sth->execute (($res_id)) or die "database fatal error : execute : $DBI::errstr";
+		 my $sql = qq{delete from dates where res_id=?};
+		 dbquery($sql, $res_id);
 
-	 my $sql = qq{delete from res where id=?};
-	 my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	 $sth->execute (($res_id)) or die "database fatal error : execute : $DBI::errstr";
+		 my $sql = qq{delete from res where id=?};
+		 dbquery($sql, $res_id);
 	 
-	 logger ($res{obj_id}, $res_id, qq{del res : $res{nom} [$userObjects->{$res{obj_id}}->{objdata}->{nom},$res{periodic},$res{jour},$res{hdeb}-$res{hfin}]});
+		 logger ($res{obj_id}, $res_id, qq{del res : $res{nom} [$userObjects->{$res{obj_id}}->{objdata}->{nom},$res{periodic},$res{jour},$res{hdeb}-$res{hfin}]});
+
+		callBack ({
+			action => 'del',
+			res	 	 => \%res,
+		});
 	 
-	my $msg = qq{
+		my $msg = qq{
 Réservation annulée
 
     Ressource : $userObjects->{$res{obj_id}}->{objdata}->{nom}
@@ -2659,8 +2655,8 @@ Annulation par: $dinfo->{$CONTENTS{sciper}}->{nom}  $dinfo->{$CONTENTS{sciper}}-
 L'accès à l'application (authentification Gaspar/Tequila requise) : $URLres
 
 Votre système de gestion des réservations
-	};
-	notifyUsers($res{obj_id}, $msg);
+		};
+		notifyUsers($res{obj_id}, $msg);
 
   }
   
@@ -2756,8 +2752,14 @@ sub add_res {
 
 		if ($CONTENTS{op} eq 'ignore') {
 			my $sql = qq{update res set datefin=? where id=?};
-			my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-			$sth->execute (($CONTENTS{date}, $CONTENTS{res_id})) or die "database fatal error : execute : $DBI::errstr";
+			dbquery($sql, $CONTENTS{date}, $CONTENTS{res_id});
+
+			my %res = getRes($CONTENTS{res_id});
+			callBack ({
+				action => 'renew',
+				res	 	 => \%res,
+			});
+
 			footpage ();
 		}
 		
@@ -3021,41 +3023,41 @@ sub done_res {
 
 #	- res ponctuelle ----
    if ($CONTENTS{mode} eq '0') {
-   	$CONTENTS{periodic} = "ponctuelle";
-	$CONTENTS{dates} 	= &valid_date($CONTENTS{date1}, $CONTENTS{objID});
-   	my @dates 			= split (/ /, $CONTENTS{dates});
+			$CONTENTS{periodic} = "ponctuelle";
+			$CONTENTS{dates} 	= &valid_date($CONTENTS{date1}, $CONTENTS{objID});
+			my @dates 			= split (/ /, $CONTENTS{dates});
 
-   	&resConflict($CONTENTS{objID}, $CONTENTS{res_id}, $CONTENTS{hdeb}, $CONTENTS{hfin}, $CONTENTS{pool}, \@dates);
-   	erreur ("conflit de dates ou pool d'objets indisponible") unless scalar @dates;
+			&resConflict($CONTENTS{objID}, $CONTENTS{res_id}, $CONTENTS{hdeb}, $CONTENTS{hfin}, $CONTENTS{pool}, \@dates);
+			erreur ("conflit de dates ou pool d'objets indisponible") unless scalar @dates;
 
-	foreach $td (@dates) {
-		erreur ("objet/salle indisponible - contacter votre administateur de l'application") unless (&objDispo($CONTENTS{objID}, $td));
-	}
+			foreach $td (@dates) {
+				erreur ("objet/salle indisponible - contacter votre administateur de l'application") unless (&objDispo($CONTENTS{objID}, $td));
+			}
 
-	my $res = {
-		nom 		=> $CONTENTS{noms},
-		sciper  => $CONTENTS{user},
-		objID   => $CONTENTS{objID},
-		descr 	=> $CONTENTS{descr},
-		datedeb	=> $CONTENTS{dates},
-		datefin	=> $CONTENTS{dates},
-		dates		=> \@dates,
-		jour 		=> $CONTENTS{jour},
-		periodic=> $CONTENTS{periodic},
-		hdeb 		=> $CONTENTS{hdeb},
-		hfin 		=> $CONTENTS{hfin},
-		unite 	=> $CONTENTS{unite},
-		pool 		=> $CONTENTS{pool},
-	};
+			my $res = {
+			nom 		=> $CONTENTS{noms},
+			sciper  => $CONTENTS{user},
+			objID   => $CONTENTS{objID},
+			descr 	=> $CONTENTS{descr},
+			datedeb	=> $CONTENTS{dates},
+			datefin	=> $CONTENTS{dates},
+			dates		=> \@dates,
+			jour 		=> $CONTENTS{jour},
+			periodic=> $CONTENTS{periodic},
+			hdeb 		=> $CONTENTS{hdeb},
+			hfin 		=> $CONTENTS{hfin},
+			unite 	=> $CONTENTS{unite},
+			pool 		=> $CONTENTS{pool},
+			};
 
-	if ($CONTENTS{res_id}) {
-		$res->{res_id} = $CONTENTS{res_id};
-		majRes ($res);
-	} else {
-		addRes ($res);
-	}
+			if ($CONTENTS{res_id}) {
+				$res->{res_id} = $CONTENTS{res_id};
+				majRes ($res);
+			} else {
+				addRes ($res);
+			}
 
-	&footpage;	
+			&footpage;	
 
    }
 
@@ -3516,15 +3518,6 @@ sub logs {
 #   erreur ("opérations en accès réservé") unless $Admins->{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/;
    erreur ("salle/objet absent") unless ($objID) ;
 
-	my $sql = qq{select * from logs where obj_id=?};
-	my @params = ($objID);
-	unless ($Admins->{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/) {
-		$sql .= qq{ and sciper=?} ;
-		push @params, $CONTENTS{sciper};
-	}
-	$sql .= qq{ order by ts desc} ;
-	my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (@params) or die "database fatal error : execute : $DBI::errstr";
 	my $title = ($Admins->{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/) ? qq{Logs pour} : qq{Mes logs pour };
 	print qq{
 	<style>
@@ -3538,6 +3531,14 @@ sub logs {
 		<br>
 	
 	};
+	my $sql = qq{select * from logs where obj_id=?};
+	my @params = ($objID);
+	unless ($Admins->{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/) {
+		$sql .= qq{ and sciper=?} ;
+		push @params, $CONTENTS{sciper};
+	}
+	$sql .= qq{ order by ts desc} ;
+  my $sth = dbquery($sql, @params);
 
 	while (my $data = $sth->fetchrow_hashref) {
 		print qq{
@@ -3557,7 +3558,7 @@ sub extract {
 
 #   erreur ("opérations en accès réservé") unless $Admins->{$CONTENTS{sciper}} or $superusers =~ /\b$CONTENTS{sciper}\b/;
 
-	&res_header () unless $CONTENTS{csv};
+	&header () unless $CONTENTS{csv};
 	
 	my $date1 = sprintf "%04d%02d01",   $year, $mon;
 	my $date2 = sprintf "%04d%02d%02d", $year, $mon, $mois[$mon];
@@ -3791,8 +3792,8 @@ sub zombies {
 
    if ($CONTENTS{type} eq 'obj') {
 		my $sql = qq{SELECT obj.* from users left outer join obj on obj.id=users.obj_id where sciper is null};
-		my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute () or die "database fatal error : execute : $DBI::errstr";
+	  my $sth = dbquery($sql);
+
 		my %objects;
 		while (my $data = $sth->fetchrow_hashref) {
 			$objects{$data->{id}} = $data;
@@ -3825,8 +3826,8 @@ sub search {
 		$nom =~ s/\s//g;
 		$nom =~ s/'/''/g;
 		my $sql = qq{select * from obj where replace(nom, ' ', '') like '%$nom%' };
-		my $sth = $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute () or die "database fatal error : execute : $DBI::errstr";
+	  my $sth = dbquery($sql);
+
 		while (my $data = $sth->fetchrow_hashref) {
 	  	next unless objAccessAllowed ($data->{id});
 			$objects{$data->{id}} = $data;
@@ -4280,8 +4281,8 @@ warn ">> $objID users ".Dumper($droits);
 
 		if ($del) {
 			my $sql = qq{delete from users where obj_id=? and sciper in ($del)};
-			my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-			$sth->execute (($objID)) or die "database fatal error : execute : $DBI::errstr";
+	 		dbquery($sql, $objID);
+
 			my $dels = join ('<br>', map { "$dinfo->{$_}->{nom} $dinfo->{$_}->{prenom} ($_)" if exists $dinfo->{$_}->{nom}} split (/,/, $del));
 			print qq{<p><b>Droits explicites effacés</b> :</p>$dels};
 		}
@@ -4290,8 +4291,7 @@ warn ">> $objID users ".Dumper($droits);
 			print qq{<hr><p><b>Mise à jour des droits explicites</b> :</p>};
 			foreach my $sciper (@todo) {
 				my $sql = qq{update users set droit=?, mail=? where obj_id=? and sciper=?};		
-				my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-				$sth->execute (($droits->{$sciper}, $mails{$sciper}, $objID, $sciper)) or die "database fatal error : execute : $DBI::errstr";
+		 		dbquery($sql, $droits->{$sciper}, $mails{$sciper}, $objID, $sciper);
 				print qq{<br>$dinfo->{$sciper}->{nom} $dinfo->{$sciper}->{prenom} ($sciper) : accès explicite ($droits->{$sciper})};
 				print qq{, admin} if $usres->{$sciper};
 				print qq{, mail}  if $mails{$sciper};
@@ -4373,6 +4373,7 @@ warn ">> $objID users ".Dumper($droits);
 		print qq{
 					<div style="width: 90px;">Host IP </div>
 		} if $IP_BASED_AUTH;
+		#	- tokens web service
 		print qq{
 					<div style="width: 640px; margin-left: 10px;">Token</div>
 					<div style="width: 90px;margin-left: 10px;">Accès </div>
@@ -4414,11 +4415,46 @@ warn ">> $objID users ".Dumper($droits);
 			</div>
 			</form>
 		};
-
+		
+		#	- callback
+			if ($USE_CALLBACK) {
+			my $call_back = getCallBack($objID);
+			my $cb_active = $call_back->{active} ? 'checked' : '';
+			my $cb_json	  = $call_back->{format} eq 'json' ? 'checked' : '';
+			my $cb_text	  = $call_back->{format} eq 'text' ? 'checked' : '';
+			print qq{
+			<hr>
+			<b>Call-back réservations</b> (appel externe après la mise à jour d'une réservation)<br>
+			<form name="form" action="$URLres/majCallBack">
+				<input type="hidden" name="objID" value="$objID">
+				<input type="hidden" name="id" value="$call_back->{id}">
+				<table style="width: 100%; margin-left: 20px;">
+					<tr>
+					 <td width="150"><b>Actif</b>
+					 <td><input type="checkbox" name="active" value="1" $cb_active>
+					<tr>
+					 <td><b>Description</b>
+					 <td><textarea name="descr" id="descr" style="width: 400px;">$call_back->{descr}</textarea>
+					<tr>
+					 <td><b>URL</b>
+					 <td><input name="url" type="url" id="url"  style="width: 400px;" value="$call_back->{url}">
+					<tr>
+					 <td><b>Token</b>
+					 <td><input name="token" id="token"  style="width: 400px;" value="$call_back->{token}">
+					<tr>
+					 <td><b>Format</b>
+					 <td>
+						<input type="radio" name="format" value="json" $cb_json> JSON
+						<input type="radio" name="format" value="text" $cb_text> TEXT
+				</table>
+				<div  style="margin: 20px 0 10px 0;"><input type="submit" name="dave" value="Enregistrer"></div>
+			</form>		
+			};
+		}
 	}
-	
+		
 	print qq{
-		</div>
+	</div>
 	<hr>
 	<form action=${thescript}/graph name=form method=POST>
 	<input name="objID" type="hidden" value="$objID">
@@ -4539,7 +4575,6 @@ sub searchUser {
 		dinfo.sciper.sciper, dinfo.sciper.nom_acc, dinfo.sciper.prenom_acc, dinfo.sciper.nom_usuel, dinfo.sciper.prenom_usuel
 		from dinfo.sciper left outer join dinfo.accred on dinfo.sciper.sciper=dinfo.accred.sciper 
   };
-
   if ($cle =~ /^[1-9]\d{5}$/) {
   	$sql .= qq{ where dinfo.sciper.sciper=$cle};
   } else {
@@ -4575,19 +4610,18 @@ sub flag_mail {
 	
 	# - users exists ?
 	my $sql = qq{select sciper from users where obj_id=? and sciper=?};
-	my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-	$sth->execute (($objID, $CONTENTS{sciper})) or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql, $objID, $CONTENTS{sciper});
+
 	if (my $user = $sth->fetchrow_hashref) { 	# - user exists
 		my $sql = qq{update users set mail=? where obj_id=? and sciper=?};
-		my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($flag, $objID, $CONTENTS{sciper})) or die "database fatal error : execute : $DBI::errstr";
+		dbquery($sql, $flag, $objID, $CONTENTS{sciper});
 	} else {
 		my $sql = qq{insert into users set 
 			mail=?,
 			obj_id=?,
-			sciper=?};
-		my $sth = $dbh->prepare( $sql)  or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($flag, $objID, $CONTENTS{sciper})) or die "database fatal error : execute : $DBI::errstr";
+			sciper=?
+		};
+		dbquery($sql, $flag, $objID, $CONTENTS{sciper});
 	}
 	
 	print "Location: ${URLres}/gestion?op=obj\n\n";
@@ -4669,11 +4703,11 @@ sub listcontacts {
 }
 
 #--------#
-sub res_header_NEW {
+sub header {
 
    return if $HEADER_DONE;
    
-   print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
+   print qq{Content-Type: text/html; charset=utf-8\n\n};
 
    print qq{<!DOCTYPE html>
 <html lang="en">
@@ -4802,109 +4836,23 @@ sub res_header_NEW {
    };
 }
 
-#--------#
-sub res_header {
-
-	 return &res_header_NEW() if $WEB2018;
-	 
-   return if $HEADER_DONE;
-
-   print qq{Content-Type: text/html; charset=iso-8859-1\n\n};
-
-	 if (	$pathinfo =~ /getUserAccreds/ ) {
-	 	$HEADER_DONE = '1';
-	 	return;
-	 }
-
-   print qq{<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.1//EN" "https://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-	<html xmlns="https://www.w3.org/1999/xhtml"> 
-	<head> 
-	 <link href="https://www.epfl.ch/css/epfl.css" media="all" rel="stylesheet" type="text/css" /> 
-	 <link rel="stylesheet" href="/absresv2.css">
-	 <script src="/absresv2.js" 		 type="text/javascript"></script>
-	 <script src="/CalendarPopup.js" type="text/javascript"></script>
-	</head>
-
-    <title>réservations@epfl</title> 
-  </head> 
-  <body> 
-
-    <noscript>
-		<div class="redbox">
-		<p><b>attention : veuillez activer Javascript pour un accès complet à toutes les fonctions</b></p>
-		</div>
-	</noscript>
-	
-	<div id="main-content"> 
-    <div id="header"> 
-      <div id="nav-logo"><a href="https://www.epfl.ch" target="_blank" title="EPFL's homepage"></a></div> 
-      <div id="nav-menus"> 
-        <a name="navigation" id="navigation"></a> 
-        <ul id="main-menus"> 
-            <li style="float:left; width: 160px; height: 74px; background-color:#999C98; margin-right:4px;">&nbsp;</li> 
-            <li style="float:left; width: 160px; height: 74px; background-color:#696F6E; margin-right:4px;">&nbsp;</li> 
-            <li style="float:left; width: 160px; height: 74px; background-color:#474E52;">&nbsp;</li> 
-        </ul> 
-      </div> <! -- nav-menus -->
-      
-      <div class="local-color" id="nav-search"> 
-        <div id="search-box"> 
-          <a name="search"></a> 
-          <form name="search" action="https://search.epfl.ch/compoundDirectory.do" id="searchform"> 
-            <label for="search-engine-local" title="Search within this site" class="current">Search</label> 
-            <input type="text" class="search" name="q" value="" id="searchfield" /><button type="submit" class="search-button"  title="Search">Search</button> 
-          </form> 
-        </div> 
-      </div> <!-- nav-search -->
-    </div> 	 <!-- header -->
-
-    <div class="clear"></div> 
-   
-    <!-- Breadcrumbs --> 
-    <ul id="breadcrumbs"> 
-       <li>EPFL</li> 
-       <li class="last">VPSI</li> 
-    </ul> 
-    };
-  
-   print qq{
-    <div class="clear"></div> 
-	};
-
-   $HEADER_DONE='1';
-
-   print qq{
-    <p></p>
-    <div class="redbox">*** ATTENTION : vous êtes sur une version de TEST ***</div>
-   } if $DEBUG;
-   
-   print qq{
-   	<p></p>
-   	<table width="100%" border="0" cellpadding="2" cellspacing="0">
-   	 <tr>
-   	   <td valign="top">
-   	   <center><img src="/.icons/res.jpg"></center>
-   };
-}
-
 #--------------
 sub checkDB {
 	
 # - check admins
   my %allAdmins;
   my $sql = qq{select sciper,obj_id from users where droit = 'A'};
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute () or die "database fatal error : execute : $DBI::errstr";
+	my $sth = dbquery($sql);
   while (my ($sciper, $objID) = $sth->fetchrow_array) {
   	my $admins = $allAdmins{$objID};
   	push (@$admins, $sciper);
   	$allAdmins{$objID} = $admins;
   }
 
+	return;
+	
   my $sql = qq{select * from obj};
-  my $sth 	= $dbh->prepare( $sql) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-  $sth->execute () or die "database fatal error : execute : $DBI::errstr";
-#  my $orphans;
+	my $sth = dbquery($sql);
   while (my $data = $sth->fetchrow_hashref) {
   	my $admins = $allAdmins{$data->{id}};
   	unless (scalar @$admins) {
@@ -5092,8 +5040,8 @@ sub maj_token {
 
    if ($CONTENTS{op} eq 'del_all') {
 		my $sql = qq{delete from tokens where obj_id=?};
-		my $sth = $dbh->prepare( $sql ) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($CONTENTS{objID})) or die "database fatal error : execute : $DBI::errstr";
+		dbquery($sql, $CONTENTS{objID});
+
 		logger ($CONTENTS{objID}, '', qq{del all tokens}) ; 
    }
    
@@ -5107,8 +5055,8 @@ sub maj_token {
 		erreur ( "wrong authorization for this ressource")  unless $obj_id eq $CONTENTS{objID};
 
 		my $sql = qq{delete from tokens where obj_id=? and id=?};
-		my $sth = $dbh->prepare( $sql ) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-		$sth->execute (($CONTENTS{objID}, $CONTENTS{tokenID})) or die "database fatal error : execute : $DBI::errstr";
+		dbquery($sql, $CONTENTS{objID}, $CONTENTS{tokenID});
+
 		logger ($CONTENTS{objID}, '', qq{del token $objTokens->{$CONTENTS{tokenID}}->{host}}) ; 
    }
    
@@ -5116,10 +5064,8 @@ sub maj_token {
 #		erreur ("adresse IP erronée") if  $IP_BASED_AUTH and ! chkEPFLIP ( $CONTENTS{host} );
 		my $tokenID = makeToken ($CONTENTS{objID});
 		my $sql = qq{insert into tokens set id=?, obj_id=?, rights=?};
-		my $sth = $dbh->prepare( $sql ) or die "database fatal error prepare\n$DBI::errstr\n$sql\n";
-# warn " >> $sql\n";
-# warn " >> ($tokenID, $CONTENTS{objID}, $CONTENTS{rights})\n";
-		$sth->execute (($tokenID, $CONTENTS{objID}, $CONTENTS{rights})) or die "database fatal error : execute : $DBI::errstr";
+		dbquery($sql, $tokenID, $CONTENTS{objID}, $CONTENTS{rights});
+
 		logger ($CONTENTS{objID}, '', qq{add token : $CONTENTS{rights}}) ; 
    }
    
@@ -5207,3 +5153,95 @@ warn "  unit=$unit, sigle=$dinfo->{$sciper}->{accreds}->{$unit}->{sigle}\n";
 	print $rettxt;
 	exit;
 }
+
+#_________________
+sub majCallBack {
+	return unless $CONTENTS{objID};
+	print qq{<b>Gestion des Call Back des réservations</b><br>};
+	$CONTENTS{format} = 'json' 		unless $CONTENTS{format};
+	erreur ("paramètres absents") unless $CONTENTS{objID} && $CONTENTS{descr} && $CONTENTS{url} && $CONTENTS{token};
+	erreur ("format erroné") 			unless $CONTENTS{format} eq 'json' || $CONTENTS{format} eq 'text';
+	erreur ("url erroné") 	 			unless $CONTENTS{url} =~ /^(http|https):\/\//;
+
+	utf8::encode($CONTENTS{descr});
+
+	my ($sql, @partams, $op);
+	if ($CONTENTS{id}) {
+		$sql = qq{update call_backs set obj_id=?, sciper=?, url=?, descr=?, token=?, format=?, active=? where id=?};
+		@params = ($CONTENTS{objID}, $CONTENTS{sciper}, $CONTENTS{url}, $CONTENTS{descr}, $CONTENTS{token}, $CONTENTS{format}, $CONTENTS{active}, $CONTENTS{id});
+		$op = 'updt';
+	} else {
+		$sql = qq{insert into call_backs set obj_id=?, sciper=?, url=?, descr=?, token=?, format=?, active=?};
+		@params = ($CONTENTS{objID}, $CONTENTS{sciper}, $CONTENTS{url}, $CONTENTS{descr}, $CONTENTS{token}, $CONTENTS{format}, $CONTENTS{active});
+		$op = 'add';
+	}
+	dbquery($sql, @params);
+	logger ($CONTENTS{objID}, '', qq{$op callback}) ; 
+	print qq{Call Back mis à jour<br>
+	Opération: $op<br>
+	<a href="$URLres/cons_obj?objID=$CONTENTS{objID}">Retour sur la page de la ressource</a>
+	};
+	&footpage();
+}
+#_________________
+sub callBack {
+	return unless $USE_CALLBACK;
+	
+	my $params = shift;
+warn ">> callBack params ".Dumper($params);
+	return { result => 'false', message => qq{paramètre callback action absent}} unless $params->{action};
+	return { result => 'false', message => qq{paramètre callback res absent}} 	 unless $params->{res};
+	
+	my %obj = getObj($params->{res}->{objID});
+	return { result => 'false', message => qq{objet de réservation pas trouvé}} unless %obj;
+	my $callback = getCallBack ($params->{res}->{objID});
+	return unless $callback && $callback->{active};
+
+	my $post = {
+		action 		=> $params->{action},
+		resID 		=> $params->{res}->{res_id},
+		dates 		=> $params->{res}->{dates},
+		hdeb 			=> $params->{res}->{hdeb},
+		hfin 			=> $params->{res}->{hdeb},
+		resNom 		=> $params->{res}->{nom},
+		resDescr  => $params->{res}->{descr},
+		objID		  => $params->{res}->{objID},
+		objDescr  => $obj{$params->{res}->{objID}}->{objdata}->{descr},
+		url 			=> $callback->{url},
+		token 		=> $callback->{token},
+		sciper 		=> $CONTENTS{sciper},
+	};
+print qq{<pre>callBack }.Dumper($post).'</pre>';
+
+	#	- call back
+	my $ua 		= LWP::UserAgent->new;
+	my $response;
+	eval {
+		local $SIG{ALRM} = sub {
+			die "callBack $params->{res}->{objID} timeout";
+		}; 
+		alarm 2;
+		$response = $ua->post( $callback->{url}, $post, );
+		alarm 0;
+	};
+	unless ($response->is_success) {
+warn "==> callback KO: ".$response->status_line;
+	} else {
+warn "==> callback OK: ".$response->status_line;
+#		$bottin_atela = decode_json($response->decoded_content);
+	}
+
+
+#	logger ($params->{res}->{objID}, $params->{res}->{res_id}, qq{ callback}) ; 
+
+}
+#_________________
+sub getCallBack {
+	my $objID = shift;
+	return unless $objID;
+	my $sql = qq{select * from call_backs where obj_id=?};
+	my $sth = dbquery($sql, $objID);
+	my $callback = $sth->fetchrow_hashref;
+	return $callback ;
+}
+
