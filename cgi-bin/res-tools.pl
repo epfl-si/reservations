@@ -30,18 +30,18 @@ $DATE  				= 'ponctuelle';
 $DAILY 				= 'quotidienne';
 $HEBDO 				= 'chaque';
 $FIRST 				= 'le 1er';
-$SEC   				= 'le 2ème';
-$TROIS 				= 'le 3ème';
-$QUATRE 			= 'le 4ème';
+$SEC   				= 'le 2Ã¨me';
+$TROIS 				= 'le 3Ã¨me';
+$QUATRE 			= 'le 4Ã¨me';
 $BIHEBDO 			= 'toutes les deux semaines';
 $TRIHEBDO 		= 'toutes les trois semaines';
 $LAST  				= 'le dernier';
 %periodics  	= (
 	$HEBDO,		'chaque', 
 	$FIRST,		'le 1er', 
-	$SEC,			'le 2ème', 
-	$TROIS,		'le 3ème', 
-	$QUATRE, 	'le 4ème',
+	$SEC,			'le 2Ã¨me', 
+	$TROIS,		'le 3Ã¨me', 
+	$QUATRE, 	'le 4Ã¨me',
 	$BIHEBDO, 'toutes les deux semaines',
 	$TRIHEBDO,'toutes les trois semaines',
 	$LAST,		'le dernier', 
@@ -60,17 +60,17 @@ $LAST  				= 'le dernier';
 @mois_noms = (
 	'',
 	'Janvier',
-	'Février',
+	'FÃ©vrier',
 	'Mars',
 	'Avril',
 	'Mai',
 	'Juin',
 	'Juillet',
-	'Août',
+	'AoÃ»t',
 	'Septembre',
 	'Octobre',
 	'Novembre',
-	'Décembre',
+	'DÃ©cembre',
 	);
 # @years = (2000..2012);
 # $MAXDATE = '20300101';
@@ -163,7 +163,7 @@ sub check_date {
 		$tyear= substr ($date, 0, 4);
 	}
 	
-	erreur ("date vide ou format erroné") unless $tday and $tmon and $tyear;
+	erreur ("date vide ou format erronÃ©") unless $tday and $tmon and $tyear;
 	
 	$date = sprintf "%4d%02d%02d", $tyear, $tmon, $tday;
 	my $i    = 0;
@@ -182,9 +182,9 @@ sub check_date {
 	  $m = $i;
    	}
 
-	erreur ("erreur de date - mois erroné: $d, $m, $y")   if $m <= 0 or $m > 12 ;
-	erreur ("erreur de date - année erronée: $d, $m, $y") if $y <= 0 ;
-	erreur ("erreur de date - jour erroné: $d, $m, $y")   if $d <= 0 or $d > $mois[$m] ;
+	erreur ("erreur de date - mois erronÃ©: $d, $m, $y")   if $m <= 0 or $m > 12 ;
+	erreur ("erreur de date - annÃ©e erronÃ©e: $d, $m, $y") if $y <= 0 ;
+	erreur ("erreur de date - jour erronÃ©: $d, $m, $y")   if $d <= 0 or $d > $mois[$m] ;
 
 	return sprintf "%4d%02d%02d", $y, $m, $d;
 }
@@ -249,10 +249,10 @@ sub rev_date {
 	 			$ts_txt = $lang eq 'en' ? 'noon' : 'midi';
 	 		}
 	 		if ($ts eq $mid_day) {
-	 			$ts_txt = $lang eq 'en' ? 'afternoon' : 'après-midi';
+	 			$ts_txt = $lang eq 'en' ? 'afternoon' : 'aprÃ¨s-midi';
 	 		}
 	 		if ($ts eq $end_day) {
-	 			$ts_txt = $lang eq 'en' ? 'end workday' : 'fin journée';
+	 			$ts_txt = $lang eq 'en' ? 'end workday' : 'fin journÃ©e';
 	 		}
 	 		my $date_name = substr(get_day_name (substr($date, 0, 8)), 0, 3);
 	 		my $date_name = uc(substr($date_name,0,1)). substr($date_name,1,2);
@@ -278,7 +278,7 @@ sub get_crt_day {
 }
 
 #_____________
-sub get_week_nb { # numéro de semaine
+sub get_week_nb { # numÃ©ro de semaine
 	my ($date) = @_;
 
 return unless $date;
@@ -289,7 +289,7 @@ return unless $date;
 }
 
 #_____________
-sub isleap { # bissextile à bascule
+sub isleap { # bissextile Ã  bascule
  my $year = $_[0];
  return (($year % 400 == 0) || ($year % 4 == 0 && $year % 100 != 0))
 }
@@ -572,10 +572,10 @@ warn "absres :: tools.pl : mailto :DEBUG=$DEBUG: dest=$dest, subj=$subj=";
   }
 
   print qq{
-		<hr>Cette information a été transmise à: $to
+		<hr>Cette information a Ã©tÃ© transmise Ã : $to
   };
   print qq{
-  <p><b>Note </b> - adresse(s) invalide(s) ou inexistante(s) : $errmail<br>Veuillez effectuer les corrections sur votre fiche de remplacements ou vos données personnelles</p>
+  <p><b>Note </b> - adresse(s) invalide(s) ou inexistante(s) : $errmail<br>Veuillez effectuer les corrections sur votre fiche de remplacements ou vos donnÃ©es personnelles</p>
   } if $errmail;
 }
 

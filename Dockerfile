@@ -176,7 +176,6 @@ COPY ./cadi-libs/Cadi/. /opt/dinfo/lib/perl/Cadi/
 COPY ./accred-libs/Accred/. /opt/dinfo/lib/perl/Accred/
 COPY ./tequila-epfl/lib/Tequila/. /opt/dinfo/lib/perl/Tequila/
 COPY ./tequila-perl-client/Tequila/Client.pm /opt/dinfo/lib/perl/Tequila/Client.pm
-COPY ./cgi-bin/res-tools.pl /opt/dinfo/lib/perl/res-tools.pl
 
 ################################################################################
 # Copy app
