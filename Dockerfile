@@ -120,6 +120,8 @@ RUN mkdir -p /var/www/vhosts/reservations.epfl.ch/cgi-bin && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/htdocs/js && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/htdocs/styles && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/htdocs/images && \
+    mkdir -p /var/www/vhosts/reservations.epfl.ch/htdocs/.maps && \
+    mkdir -p /var/www/vhosts/reservations.epfl.ch/htdocs/.images && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/logs && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/private/Tequila/Sessions && \
     mkdir -p /var/www/vhosts/reservations.epfl.ch/private/etc

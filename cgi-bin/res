@@ -10,12 +10,8 @@
 #  				update [cionca@epfl.ch Mar 2010]
 #
 
-BEGIN {
-          $ENV{NYTPROF} = 'file=/tmp/nytprof.out';
-}
-#use Devel::NYTProf;
-
 use lib '/opt/dinfo/lib/perl';
+use lib '/var/www/vhosts/reservations.epfl.ch/cgi-bin';
 
 use utf8;
 use DBI;
@@ -31,6 +27,8 @@ use Tequila::Client;
 binmode (STDOUT, ':utf8');
 
 require 'res-tools.pl';
+
+$ENV {SERVER_NAME} = $ENV {SITE_URL} if ($ENV {SERVER_NAME} eq '127.0.0.1' && $ENV {SITE_URL});
 
 #---------------------------------------------------------
 my $version	   = 'Mar 2020';
@@ -106,7 +104,7 @@ use vars qw( $allObjects $allUnitsUsers @allunits $userObjects $res $dinfo $dbh 
 # $dbh   = dbconnect ('reservations');
  $dbh = new Cadi::CadiDB (
 	  dbname => 'reservations',
-		utf8 => 1,
+#		utf8 => 1,
  ) unless $dbh;
  erreur ("FATAL DB ACCESS") unless $dbh;
 
@@ -359,7 +357,7 @@ sub list_res {
    	semaine : <a href=$URLres/list_res?objects=$CONTENTS{objects}&date=$prev_week>précédente</a> | <a href=$URLres/list_res?objects=$CONTENTS{objects}&date=$next_week>suivante</a> - choisir une date :
 		<input name="date" id="date" size="10" value="$date">
 		<a href="#" onClick="cal.select(document.getElementById('date'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1">
-		<img src="/.icons/cal.gif" border="0"></a>
+		<img src="/images/cal.gif" border="0"></a>
 	<input type="submit" name="go" value="afficher">
 	</form>
    };
@@ -1445,7 +1443,7 @@ sub footpage {
 		</ul>
     <hr>
 	<h4>FAQs</h4>
-	<li><img alt="" src="https://reservations.epfl.ch/.icons/new_small.gif" style="height:12px; width:31px"> <a href="https://wiki.epfl.ch/resfaq#q1">quoi de neuf ?</a> (droit de consultation)</li>
+	<li><img alt="" src="https://reservations.epfl.ch/images/new_small.gif" style="height:12px; width:31px"> <a href="https://wiki.epfl.ch/resfaq#q1">quoi de neuf ?</a> (droit de consultation)</li>
 	<li><a href=http://wiki.epfl.ch/resfaq#q2 target="_blank">comment avoir accès aux réservations...</a>
 	<li><a href=http://wiki.epfl.ch/resfaq#q3 target="_blank">je reçois une avalanche de messages...</a>
 	<br>[ <a href=http://wiki.epfl.ch/resfaq target="_blank">lire plus...</a> ]
@@ -1519,14 +1517,14 @@ sub main {
    print qq{ date 
 		<input name="date1" id="date1" size="10" value="}.(sprintf "%02d/%02d/%4d",$mday,$mon,$year).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>, 
-		 graphique <select name=graph_type>
-	   <option value=M selected>du mois</option>
-	   <option value=W >de la semaine</option>
-	   </select>  <input type=submit value='afficher'>
-	   </form>
-	   </ul>
+		graphique <select name=graph_type>
+	  <option value=M selected>du mois</option>
+	  <option value=W >de la semaine</option>
+	  </select>  <input type=submit value='afficher'>
+	  </form>
+	  </ul>
    };
    
    checkConflicts();
@@ -1576,7 +1574,7 @@ sub checkDoRenew {
 	
 	return unless scalar @resToActivate;
 	print qq{<hr>
-		<h3><img src="/.icons/new_small.gif" border="0"> réservations périodiques à prolonger</h3>
+		<h3><img src="/images/new_small.gif" border="0"> réservations périodiques à prolonger</h3>
 		<ul>
 		<table width="90%" border="1" cellpadding="0" cellspacing="0">
 		<th>raison
@@ -1628,19 +1626,19 @@ sub listobj {
 		$CONTENTS{ACC_TYPE} = 'R';
 		my ($droits, $detLink);
 		if (objAccessAllowed ($objID)) {
-			$droits  = qq{<img src="/.icons/see.png">}  ;
+			$droits  = qq{<img src="/images/see.png">}  ;
 			$detLink = qq{<a href="$thescript/cons_obj?objID=$obj->{id}"><b>$obj->{nom}</b></a>} ;
 		} else {
-			$droits  = qq{<img src="/.icons/no-see.png">} ;
+			$droits  = qq{<img src="/images/no-see.png">} ;
 			$detLink = qq{<b>$obj->{nom}</b>} ;
 		}
 
 		#	- res
 		$CONTENTS{ACC_TYPE} = 'W';
-		$droits .= qq{ <img src="/.icons/ok.gif" width="15"> } if objAccessAllowed ($objID);
+		$droits .= qq{ <img src="/images/ok.gif" width="15"> } if objAccessAllowed ($objID);
 
 		#	- admin
-		$droits .= qq{ <img src="/.icons/keys.gif" width="15"> }  if $Admins->{$CONTENTS{sciper}}->{$objID};
+		$droits .= qq{ <img src="/images/keys.gif" width="15"> }  if $Admins->{$CONTENTS{sciper}}->{$objID};
 
 		my @admins = getObjAdminsTxt ($obj->{id});
 		my $admins = join "<br>", @admins;
@@ -1656,7 +1654,7 @@ sub listobj {
 		$style = qq{style="background-color:#FCE3E3;"} if $access =~ /indisponible/;
 		$style = qq{style="background-color:#orange;"} if $access =~ /restreint/;
 		
-		my $planLink = qq{<a href="$URLplan?q=$obj->{plan}"><img src="/.icons/plan.gif" border="0" width="14"></a>} if $obj->{plan};
+		my $planLink = qq{<a href="$URLplan?q=$obj->{plan}"><img src="/images/plan.gif" border="0" width="14"></a>} if $obj->{plan};
 
 		unless ($admins) {
 			$admins = qq{sans administrateurs};
@@ -1696,7 +1694,7 @@ sub listres {
 	
    my $objID = $CONTENTS{objID};
    my $date  = $CONTENTS{date1};
-   print qq{<h2 align=left><img src=/.icons/agenda.gif >Réservations : $userObjects->{$objID}->{objdata}->{nom}</h2>
+   print qq{<h2 align=left><img src=/images/agenda.gif >Réservations : $userObjects->{$objID}->{objdata}->{nom}</h2>
 	<hr>
    };
 
@@ -1859,7 +1857,7 @@ sub listRes {
 #__________________
 sub listconflicts {
 	
-   print qq{<h2 align=left><img src=/.icons/agenda.gif > Conflits des réservations </h2>};
+   print qq{<h2 align=left><img src=/images/agenda.gif > Conflits des réservations </h2>};
    my @conflicts = checkConflicts('', '1');
    
    unless (scalar @conflicts) {
@@ -1941,7 +1939,6 @@ sub graph {
 sub main_graph{
   my ($objID, $jj, $mm, $aa, $graph_type) = @_;
   my @objIDs	= $objID eq 'toutes' ? keys %$userObjects : split / /, $objID;
-  my $abs_gif   = 'tmpres.gif';
   my ($maxday, $week_nb, $file_name);
 
   my ($dd1, $dd2) = split(/\t/, &periode($jj, $mm, $aa, $graph_type));
@@ -1978,7 +1975,7 @@ sub main_graph{
   foreach my $objID (sort {lc($userObjects->{$a}->{objdata}->{nom}) cmp lc($userObjects->{$b}->{objdata}->{nom})} @objIDs) {
   	next unless $objID;
 		my @cnflcts    = checkConflicts($objID, '1');
-		my $hascnflcts = scalar @cnflcts ? qq{<img src="/.icons/warning.gif" align="middle"> conflits => <a href="$thescript/listres?objID=$objID&graph_type=M&date1=$file_name">affichage liste</a> } : '';
+		my $hascnflcts = scalar @cnflcts ? qq{<img src="/images/warning.gif" align="middle"> conflits => <a href="$thescript/listres?objID=$objID&graph_type=M&date1=$file_name">affichage liste</a> } : '';
 		my $obj = $allObjects->{$objID}->{objdata};
 		if ($obj->{visible} eq 'r' and ! exists ($userObjects->{$objID})) {
 			print qq{
@@ -2444,7 +2441,7 @@ sub checkConflicts {
 	$crtpool = $data->{pool};
   }
  
-  print qq{ [<img src="/.icons/warning.gif" align="middle"> <b>attention : </b> conflits de dates - <a href=$thescript/listconflicts>consulter...</a> ]} if scalar (@conflicts) and ! $nolist;
+  print qq{ [<img src="/images/warning.gif" align="middle"> <b>attention : </b> conflits de dates - <a href=$thescript/listconflicts>consulter...</a> ]} if scalar (@conflicts) and ! $nolist;
 
   return @conflicts
 
@@ -2745,7 +2742,7 @@ sub add_res {
 
    my $sel;
    
-   print qq{<h3><img src=/.icons/agenda.gif >Gestion des réservations</h3>};
+   print qq{<h3><img src=/images/agenda.gif >Gestion des réservations</h3>};
 
    $CONTENTS{ACC_TYPE} = 'W';
    if ($CONTENTS{objID}) {
@@ -2892,7 +2889,7 @@ sub add_res {
       	<tr><td><b>date:</b>
       	<td>le <input type="text" name="date1" id="date1" size="10" value="}.rev_date($CONTENTS{date}).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
        };
 
@@ -2906,12 +2903,12 @@ sub add_res {
         <tr><td><b>du:</b> 
         <td><input type="text" name="date1" id="date1" size="10" value="}.rev_date($CONTENTS{date}).qq{">
         <a href="#" 
-			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
 		<b>au:</b>
         <input type="text" name="date2" id="date2" size="10" value="}.rev_date($next_date).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
         
 		};
@@ -2924,12 +2921,12 @@ sub add_res {
       	<tr><td valign=top><b>dates:</b>
         <td><b>du:</b> <input type="text" name="date1" id="date1" size="10" value="}.rev_date($CONTENTS{date}).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
 		
 		<b>au:</b> <input type="text" name="date2" id="date2" size="10" value="}.rev_date($next_date).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
       };      	
 
@@ -3283,10 +3280,10 @@ sub ges_res {
 	<tr>
 	<td colspan=2><b>Du</b> <input name="date1" id="date1" size="10" value="}.rev_date($crt_date).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0"></a>&nbsp;
+			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0"></a>&nbsp;
 		<b>au</b> <input name="date2" id="date2" size="10" value="}.rev_date($lastdate).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
 		
 		<tr>
@@ -3328,7 +3325,7 @@ sub cons_res {
 	my $date2 = &check_date($CONTENTS{date2});
 
   print  qq{
-	<h2><img src=/.icons/agenda.gif >Consultation des réservations </h2>
+	<h2><img src=/images/agenda.gif >Consultation des réservations </h2>
 	du }.rev_date($date1)." au ".rev_date($date2);
 
 	listRes ($date1, $date2, $CONTENTS{objID}, $CONTENTS{sciper_todo});
@@ -3498,7 +3495,7 @@ sub popup {
 		};
 		foreach my $item (sort split(/,/, $CONTENTS{items})) {
 			next unless $item;
-			print qq{<a href=$thescript/popup?del=1&del_item=$item&items=$CONTENTS{items}><img src=/.icons/ko.gif border="0"> $item</a><br>}
+			print qq{<a href=$thescript/popup?del=1&del_item=$item&items=$CONTENTS{items}><img src=/images/ko.gif border="0"> $item</a><br>}
 		}
 	}
 	print qq{
@@ -3549,6 +3546,7 @@ sub logs {
   my $sth = dbquery($sql, @params);
 
 	while (my $data = $sth->fetchrow_hashref) {
+		$data->{msg} = decode('UTF-8', $data->{msg});
 		print qq{
 		<div style="float:left;width:150px;">$data->{ts}</div>
 		<div style="float:left;width:150px;">$dinfo->{$data->{sciper}}->{nom} $dinfo->{$data->{sciper}}->{prenom}</div>
@@ -3584,12 +3582,12 @@ sub extract {
 
 		<b>du:</b> <input type="text" name="date1" id="date1" size="10" value="}.rev_date($date1).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
 	
 		<b>au:</b> <input type="text" name="date2" id="date2" size="10" value="}.rev_date($date2).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
 		<input type="submit" name="go" value="extraire">
 		</form>
@@ -3683,7 +3681,7 @@ sub maj_obj {
      <td><input name="nom" width="48" value="$nom"></td>
    </tr>
    <tr>
-     <td align="right" width="200"><img src="/.icons/new_small.gif"> <b>Ressource de type <em>pool</em> <br>nombre d'objets</b></td>
+     <td align="right" width="200"><img src="/images/new_small.gif"> <b>Ressource de type <em>pool</em> <br>nombre d'objets</b></td>
      <td><input name="pool" value="$pool"> (1 si la ressource est unique)</td>
    </tr>
    <tr>
@@ -3734,12 +3732,12 @@ sub maj_obj {
        <span style="color:red; margin-right:10px;">indisponible 
        	du <input name="date1" id="date1" size="10" value="}.rev_date($datedeb).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
 
        	au <input name="date2" id="date2" size="10" value="}.rev_date($datefin).qq{">
 		<a href="#" 
-			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+			onClick="cal.select(document.getElementById('date2'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 		</a>
 		</span>
 		<input type="button" name="reset" value="supprimer" onclick="
@@ -3989,10 +3987,10 @@ sub disp_obj {
 
    <h2>Salles/objets</h2>
 	<b>Actions</b> :
-	<li><img src="/.icons/add.gif" width="14"> &nbsp;| <img src="/.icons/del.gif" width="14"> &nbsp;= demander l'accès ou l'annulation du droit de réservation pour cette ressource auprès des administrateurs<br>   
-	<li><img src="/.icons/email-ok.gif" width="14"> | <img src="/.icons/email-ko.gif" width="14"> &nbsp;= état de la notification par mail des réservations pour cette ressource : activée | désactivée (cliquer sur l'icône pour changer).
+	<li><img src="/images/add.gif" width="14"> &nbsp;| <img src="/images/del.gif" width="14"> &nbsp;= demander l'accès ou l'annulation du droit de réservation pour cette ressource auprès des administrateurs<br>   
+	<li><img src="/images/email-ok.gif" width="14"> | <img src="/images/email-ko.gif" width="14"> &nbsp;= état de la notification par mail des réservations pour cette ressource : activée | désactivée (cliquer sur l'icône pour changer).
 	<br>
-	<b>Droits</b>: <img src="/.icons/see.png" > consultation ; <img src="/.icons/ok.gif" width="15"">  réservation ; <img src="/.icons/keys.gif" width="15">  gestion
+	<b>Droits</b>: <img src="/images/see.png" > consultation ; <img src="/images/ok.gif" width="15"">  réservation ; <img src="/images/keys.gif" width="15">  gestion
 	<br><br>
    };
 
@@ -4019,12 +4017,12 @@ sub disp_obj {
 		my $doLogin = qq{&login=1};
 		#	- visible
 		$CONTENTS{ACC_TYPE} = 'R';
-		my $droits = objAccessAllowed ($objID) ? qq{<img src="/.icons/see.png">} : qq{<img src="/.icons/no-see.png">} ;
+		my $droits = objAccessAllowed ($objID) ? qq{<img src="/images/see.png">} : qq{<img src="/images/no-see.png">} ;
 		#	- res
 		$CONTENTS{ACC_TYPE} = 'W';
-		$droits .= qq{ <img src="/.icons/ok.gif" width="15"> } if objAccessAllowed ($objID);
+		$droits .= qq{ <img src="/images/ok.gif" width="15"> } if objAccessAllowed ($objID);
 		#	- admin
-		$droits .= qq{ <img src="/.icons/keys.gif" width="15"> }  if $Admins->{$CONTENTS{sciper}}->{$objID};
+		$droits .= qq{ <img src="/images/keys.gif" width="15"> }  if $Admins->{$CONTENTS{sciper}}->{$objID};
 		my @admins = getObjAdminsTxt ($obj->{id});
 		my $admins = join "<br>", @admins;
 		my $style;
@@ -4043,20 +4041,20 @@ sub disp_obj {
 		my $mail = '';
 		$mail = $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}}->{mail} ? 'email-ok.gif' : 'email-ko.gif';
 		
-		my $planLink = qq{<a href="$URLplan?q=$obj->{plan}"><img src="/.icons/plan.gif" border="0" width="14"></a>} if $obj->{plan};
+		my $planLink = qq{<a href="$URLplan?q=$obj->{plan}"><img src="/images/plan.gif" border="0" width="14"></a>} if $obj->{plan};
 		
-		my $mailLink = qq{<a href=$thescript/flag_mail?objID=$objID><img src=/.icons/$mail border="0" width="14"></a>} if $userObjects->{$objID};
+		my $mailLink = qq{<a href=$thescript/flag_mail?objID=$objID><img src=/images/$mail border="0" width="14"></a>} if $userObjects->{$objID};
 		
 		my $actionLink;
 		if (exists $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}} and $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}}->{reg}) {	# - registered
-			$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d annulation de l accès à $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=unreg'}"><img src="/.icons/del.gif" border="0" width="14"></a>} unless $Admins->{$CONTENTS{sciper}}->{$objID};
+			$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d annulation de l accès à $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=unreg'}"><img src="/images/del.gif" border="0" width="14"></a>} unless $Admins->{$CONTENTS{sciper}}->{$objID};
 		} else {
 			# - test dynamic access
 			my $unites = ','.$obj->{unites}.',';
 			if (map {$unites =~ m/,$_\b/} @allunits) {
-				$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d annulation de l accès à $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=unreg'}"><img src="/.icons/del.gif" border="0" width="14"></a>} unless $Admins->{$CONTENTS{sciper}}->{$objID};
+				$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d annulation de l accès à $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=unreg'}"><img src="/images/del.gif" border="0" width="14"></a>} unless $Admins->{$CONTENTS{sciper}}->{$objID};
 			} else {
-				$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d accès à $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=reg'}"><img src="/.icons/add.gif" border="0" width="14"></a>};
+				$actionLink = qq{<a href=# OnClick="if (confirm ('Envoyer la demande d accès à $obj->{nom} ?')) {location.href='$thescript/register?objID=$objID&op=reg'}"><img src="/images/add.gif" border="0" width="14"></a>};
 			}
 			
 		}
@@ -4340,7 +4338,7 @@ warn ">> $objID users ".Dumper($droits);
 	};
 	print qq{<b>Nb de ressources disponibles</b> : $obj->{pool}<br>} 				if ($obj->{pool} > 1);
 	print qq{<b>Nb max d'objets par réservation</b> : $obj->{max_pool}<br>} if ($obj->{pool} > 1);
-	print qq{<b>Plan :</b> <a href="$URLplan?q=$obj->{plan}"><img src="/.icons/plan.gif" border="0">$obj->{plan}</a><br>} if $obj->{plan};
+	print qq{<b>Plan :</b> <a href="$URLplan?q=$obj->{plan}"><img src="/images/plan.gif" border="0">$obj->{plan}</a><br>} if $obj->{plan};
 	my $implicitTxt  = qq{<li>Unités: $unites</li>} 	 if $unites;
 		 $implicitTxt .= qq{<li>Groupes: $groupes</li>} if $groupes;
 		 $implicitTxt  = qq{aucun - seuls les comptes explicites ci-dessous ont accès} unless $implicitTxt;
@@ -4479,7 +4477,7 @@ warn ">> $objID users ".Dumper($droits);
 	<b>Graphique des réservations</b>, date 
 	<input name="date1" id="date1" size="10" value="}.(sprintf "%02d/%02d/%4d",$mday,$mon,$year).qq{">
 	<a href="#" 
-		onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+		onClick="cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); return false;" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 	</a>
 	graphique
 	 <select name=graph_type>
@@ -4500,13 +4498,13 @@ warn ">> $objID users ".Dumper($droits);
 			<a href="#" onClick="
 				cal.select(document.getElementById('date1'),'anchor1','dd/MM/yyyy'); 
 				return false;
-				" name="anchor1" id="anchor1"><img src="/.icons/cal.gif" border="0">
+				" name="anchor1" id="anchor1"><img src="/images/cal.gif" border="0">
 			</a>
 		au <input name="date2" id="date2" size="10" value="}.(sprintf "%02d/%02d/%4d",$mday,$mon,$year).qq{">
 			<a href="#" onClick="
 				cal.select(document.getElementById('date2'),'anchor2','dd/MM/yyyy'); 
 				return false;
-				" name="anchor2" id="anchor1"><img src="/.icons/cal.gif" border="0">
+				" name="anchor2" id="anchor1"><img src="/images/cal.gif" border="0">
 			</a>
 		<input type=submit value='afficher'>
 		</form>
@@ -4778,11 +4776,6 @@ sub header {
 		<a class="logo" href="https://www.epfl.ch/en/">
 		<img src="https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg" alt="Logo EPFL, École polytechnique fédérale de Lausanne" class="img-fluid">
 		</a>
-<!-- 
-		<a class="logo-50" href="https://www.epfl.ch/campus/events/celebration-en/">
-		<img src="https://www.epfl.ch/wp-content/themes/wp-theme-2018/theme/img/logo50.gif" alt="Logo EPFL 50e anniversaire" width="101" height="91">
-		</a>
- -->
 	</div>
 	<h1>Réservations en ligne</h1>
 
@@ -4849,7 +4842,7 @@ sub header {
    	 <tr>
    	   <td valign="top">
 <!--
-   	   <center><img src="/.icons/res.jpg"></center>
+   	   <center><img src="/images/res.jpg"></center>
 -->
    };
 }
