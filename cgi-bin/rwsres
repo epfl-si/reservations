@@ -18,7 +18,11 @@ binmode (STDOUT, ':utf8');
 
 get_time ();
 
-my $dbh   = &dbconnect ('reservations');
+$dbh = new Cadi::CadiDB (
+	  dbname => 'reservations',
+ ) unless $dbh;
+ erreur ("FATAL DB ACCESS") unless $dbh;
+
 $db_dinfo = new Cadi::CadiDB (
   dbname => 'dinfo',
    trace => 1,

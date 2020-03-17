@@ -331,8 +331,11 @@ sub list_res {
 		}
 	}
 	
-	$dbh = dbconnect ('reservations');
-	
+	$dbh = new Cadi::CadiDB (
+		dbname => 'reservations',
+	) unless $dbh;
+	erreur ("FATAL DB ACCESS") unless $dbh;
+ 	
 	$objID = $CONTENTS{objects};
 
 	$userObjects = getObj ($CONTENTS{objects});
@@ -1443,7 +1446,7 @@ sub footpage {
 		</ul>
     <hr>
 	<h4>FAQs</h4>
-	<li><img alt="" src="https://reservations.epfl.ch/images/new_small.gif" style="height:12px; width:31px"> <a href="https://wiki.epfl.ch/resfaq#q1">quoi de neuf ?</a> (droit de consultation)</li>
+	<li><img alt="" src="/images/new_small.gif" style="height:12px; width:31px"> <a href="https://wiki.epfl.ch/resfaq#q1">quoi de neuf ?</a> (droit de consultation)</li>
 	<li><a href=http://wiki.epfl.ch/resfaq#q2 target="_blank">comment avoir accès aux réservations...</a>
 	<li><a href=http://wiki.epfl.ch/resfaq#q3 target="_blank">je reçois une avalanche de messages...</a>
 	<br>[ <a href=http://wiki.epfl.ch/resfaq target="_blank">lire plus...</a> ]
@@ -1499,7 +1502,9 @@ sub main {
     }
 
 	# - what's new
-	print qq{<a href=http://wiki.epfl.ch/resfaq/news target="_blank"><b>What's new : </b>accès aux données de réservation par web service (en développement)</a>
+	print qq{<h4><img alt="what's new'" src="/images/new_small.gif" style="height:12px; width:31px"> What's new</h4>
+	<li><a href="https://wiki.epfl.ch/resfaq#consultation">Accès en consultation</a></li>
+	<li>call back réservations</li>
 	<hr>};
  
     checkDoRenew();
@@ -2012,7 +2017,7 @@ sub main_graph{
 		my $maps_url = qq{/.maps/${objID}};
 		my $path_info = $CONTENTS{path_info} ? $CONTENTS{path_info}  : $ENV{PATH_INFO};
 		$path_info =~ s#^/##;
-		my $descr = $CONTENTS{show_descr} ? $obj->{descr} : qq{<div style="width:80%; margin-left:20px; height:50px; overflow: scroll; border: 1px solid #aaaaaa;">$obj->{descr}</div>};
+		my $descr = $CONTENTS{show_descr} ? $obj->{descr} : qq{<div style="width:80%; height:100px; overflow: scroll; border: 1px solid #aaaaaa;">$obj->{descr}</div>};
 		
 		my $objects;
 		foreach my $obj_id (@objIDs) {
@@ -2027,7 +2032,7 @@ sub main_graph{
 			my $ndate	 = sprintf "01/%02d/%4d", $next_month, $next_year;
 			print qq{<hr>Ressource : <b>$nom_salle</b>, $mois_noms[$mm] $aa  <a href=$thescript/$path_info?${objects}date1=$pdate&graph_type=M&show_descr=$CONTENTS{show_descr}>précédent</a> | <a href=$thescript/$path_info?${objects}date1=$ndate&graph_type=M&show_descr=$CONTENTS{show_descr}>suivant</a>  $hascnflcts<br>
 			$descr
-			<p><a href=$thescript/image?objID=$objID&path_info=$path_info&graph_type=$graph_type&map=$file_name><img src=$maps_url/$file_name.gif border=0 ISMAP></a>
+			<p style="margin-top: 20px;"><a href=$thescript/image?objID=$objID&path_info=$path_info&graph_type=$graph_type&map=$file_name><img src=$maps_url/$file_name.gif border=0 ISMAP></a>
 			};
 		} else {
 			my $nd = &get_next_n_day((sprintf "%4d%02d%02d",$aa,$mm,$jj), 7);
@@ -2037,7 +2042,7 @@ sub main_graph{
 			printf " | <a href=$thescript/$path_info?objID=$objID&path_info=$path_info&graph_type=M&date1=01/%02d/%4d>le graphique du mois</a> ",$mm,$aa ;
 			print qq{ $hascnflcts<br>
 			$descr
-			<p><a href=$thescript/image?objID=$objID&path_info=$path_info&graph_type=$graph_type&map=$file_name><img src=$maps_url/$file_name.gif  border=0 ISMAP></a>};
+			<p style="margin-top: 20px;"><a href=$thescript/image?objID=$objID&path_info=$path_info&graph_type=$graph_type&map=$file_name><img src=$maps_url/$file_name.gif  border=0 ISMAP></a>};
 		}
 
     listRes ($dd1, $dd2, $objID);
@@ -4759,63 +4764,31 @@ sub header {
 </head> 
 <body data-spy="scroll" data-target="#intermediate-nav" data-offset="0">
  
- <header role="banner" class="header header-light">
-
+<header role="banner" class="header header-light" style="display: inline;">
 	<div class="drawer mr-3 mr-xl-0">
-	<button class="drawer-toggle">
-	<svg class="icon" aria-hidden="true"><use xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="#icon-chevron-right"></use></svg>
-	</button>
-	<a href="https://epfl.ch/" class="drawer-link">
-	<span class="text">
-	Go to main site
-	</span>
-	</a>
-	</div>
-  	
- 	<div class="site-branding">
-		<a class="logo" href="https://www.epfl.ch/en/">
-		<img src="https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg" alt="Logo EPFL, École polytechnique fédérale de Lausanne" class="img-fluid">
+		<button class="drawer-toggle">
+			<svg class="icon" aria-hidden="true"><use xlink:href="#icon-chevron-right"></use></svg>
+		</button>
+		<a href="#" class="drawer-link">
+			<span class="text">
+				Go to main site
+			</span>
 		</a>
 	</div>
-	<h1>Réservations en ligne</h1>
 
-	<div class="dropdown dropright search d-none d-xl-block">
-		<a class="dropdown-toggle" href="#" data-toggle="dropdown">
-			<svg class="icon" aria-hidden="true"><use xlink:href="#icon-search"></use></svg>
-		</a>
-		<form action="https://search.epfl.ch/" class="dropdown-menu border-0 p-0">
-			<input type="hidden" name="filter" value="people">
-			<div class="search-form mt-1 input-group">
-				<TMPL_IF NAME=browser_FR>
-					<label for="search" class="sr-only">Rechercher sur le site</label>
-					<input type="text" class="form-control" name="q" placeholder="Rechercher">
-					<button type="submit" class="d-none d-xl-block btn btn-primary input-group-append">Valider</button>
-				<TMPL_ELSE>
-					<label for="search" class="sr-only">Search on site</label>
-					<input type="text" class="form-control" name="q" placeholder="Search">
-					<button type="submit" class="d-none d-xl-block btn btn-primary input-group-append">Search</button>
-				</TMPL_IF>
-			</div>
-		</form>
+  <div class="header-light-content" style="display: inline-grid;vertical-align: top;width: auto;margin-top: 30px;">
+    <a class="logo" href="https://www.epfl.ch/">
+      <img src="https://www.epfl.ch/wp-content/themes/wp-theme-2018/assets/svg/epfl-logo.svg?refresh=now" alt="Logo EPFL, École polytechnique fédérale de Lausanne" class="img-fluid">
+    </a>
+  </div>
+  <div style="
+    display: inline-grid;
+    vertical-align: top;
+    margin-top: 40px;
+    margin-left: 20px;
+">
+    <h1>Réservations en ligne</h1>
 	</div>
-
-	<form action="https://search.epfl.ch/" class="d-lg-none">
-		<input type="hidden" name="filter" value="people">
-		<div class="input-group search-mobile" role="search">
-			<div class="input-group-prepend">
-				<span class="input-group-text">
-					<svg class="icon" aria-hidden="true"><use xlink:href="#icon-search"></use></svg>
-				</span>
-			</div>
-				<TMPL_IF NAME=browser_FR>
-					<label for="search" class="sr-only">Rechercher sur le site</label>
-					<input type="text" class="form-control" name="q" placeholder="Rechercher">
-				<TMPL_ELSE>
-					<label for="search" class="sr-only">Search on site</label>
-					<input type="text" class="form-control" name="q" placeholder="Search">
-				</TMPL_IF>
-		</div>
-	</form>
 
 </header>
 
