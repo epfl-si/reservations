@@ -26,9 +26,8 @@ use Tequila::Client;
 
 binmode (STDOUT, ':utf8');
 
-require 'res-tools.pl';
-
 $ENV {SERVER_NAME} = $ENV {SITE_URL} if ($ENV {SERVER_NAME} eq '127.0.0.1' && $ENV {SITE_URL});
+require 'res-tools.pl';
 
 #---------------------------------------------------------
 my $version	   = 'Mar 2020';
@@ -91,6 +90,8 @@ $login_as 			= '276008';
 $login_as 			= '136108';
 $login_as 			= '140973';
 $login_as 			= '109324';
+$login_as 			= '140973';
+$login_as 			= '112215';
 #	---------
 	
 %CONTENTS  			= &loadargs ();
@@ -483,7 +484,7 @@ sub getObjects {
 		$allObjects->{$data->{id}}->{usrdata}->{$data->{sciper}}->{droit} = $data->{droit};
 		$allObjects->{$data->{id}}->{usrdata}->{$data->{sciper}}->{mail}  = $data->{mail};
 		$allObjects->{$data->{id}}->{objdata} = $data unless defined $allObjects->{$data->{id}}->{objdata};
-# 		$allObjects->{$data->{id}}->{usrdata}->{$data->{sciper}}->{reg} = $data->{droit};
+ 		$allObjects->{$data->{id}}->{usrdata}->{$data->{sciper}}->{reg} 	= $data->{droit};
 
 		$commonObjects->{$data->{id}} 	 = $data->{droit};
 		$commonUsers->{$data->{sciper}}	 = $data->{droit};
@@ -1446,6 +1447,9 @@ sub footpage {
 		</ul>
     <hr>
 	<h4>FAQs</h4>
+	<li><img alt="" src="/images/new_small.gif" style="height:12px; width:31px"> <a href="https://wiki.epfl.ch/resfaq#q1">quoi de neuf ?</a>
+	<br>- droit de consultation
+	<br>- notifications</li>
 	<li><img alt="" src="/images/new_small.gif" style="height:12px; width:31px"> <a href="https://wiki.epfl.ch/resfaq#q1">quoi de neuf ?</a> (droit de consultation)</li>
 	<li><a href=http://wiki.epfl.ch/resfaq#q2 target="_blank">comment avoir accès aux réservations...</a>
 	<li><a href=http://wiki.epfl.ch/resfaq#q3 target="_blank">je reçois une avalanche de messages...</a>
@@ -1503,6 +1507,7 @@ sub main {
 
 	# - what's new
 	print qq{<h4><img alt="what's new'" src="/images/new_small.gif" style="height:12px; width:31px"> What's new</h4>
+	<li><a href="https://wiki.epfl.ch/resfaq#q1">Notifications aux utilisateurs d'une ressource</a></li>
 	<li><a href="https://wiki.epfl.ch/resfaq#consultation">Accès en consultation</a></li>
 	<li>call back réservations</li>
 	<hr>};
@@ -4219,7 +4224,59 @@ sub cons_obj {
 
 	my @objUsers 	= getObjUsers ($objID);
 	my @admins 		= getObjAdmins($objID);
+
+	if ($CONTENTS{op} eq 'notify') { # - 
+		erreur ("Pas de droits") unless ($Admins->{$CONTENTS{sciper}}->{$objID}  or $superusers =~ /\b$CONTENTS{sciper}\b/);
+		print qq{
+			<div style="background: #eeeeee;">
+			<h3>Notification aux utilisateurs de cette ressource</h3>
+		};
+		erreur("Pas de sujet") 	 unless $CONTENTS{subj};
+		erreur("Pas de contenu") unless $CONTENTS{msg};
+		my $dest;
+		foreach my $sciper (sort {lc($dinfo->{$a}->{nom}) cmp lc($dinfo->{$b}->{nom})} @objUsers) {
+			next unless exists $allObjects->{$objID}->{usrdata}->{$sciper};
+			next unless exists $dinfo->{$sciper}->{nom};
+			next unless exists $dinfo->{$sciper}->{email};
+			$dest .= qq{$dinfo->{$sciper}->{email},};
+		}	
+
+		#	- implicit access
+		foreach my $unite (split /,/, lc($obj->{unites}) ) {
+			nest unless $unite;
+			$dest .= qq{personnel.$unite\@epfl.ch,}
+		}
+		foreach my $groupe (split /,/, lc($obj->{groupes}) ) {
+			nest unless $groupe;
+			$dest .= qq{$groupe\@groupes.epfl.ch,}
+		}
+		$dest =~ s/,$//;
+		erreur("Aucun destinataire") unless $dest;
+	
+#	  sendMail ($dest, $CONTENTS{subj}, $CONTENTS{msg}) ;
+		my $dest_txt;
+		map { 
+			$dest_txt .= qq{<li>$_</li>} if $_
+		} split /,/, $dest;
+
+		print qq{
+			<hr>
+			<h4>Message</h4>
+			$CONTENTS{msg}
+			<hr>
+			<h4>Envoyé à</h4>
+			$dest_txt
+			<br>
+			<hr>
+			<a href=$URLres/cons_obj?objID=$objID>retour sur la page de la ressource</a>
+		};
+		footpage ();
+
+	}
+
+
 	if ($CONTENTS{op} eq 'adduser') { # - adduser
+		erreur ("Pas de droits") unless ($Admins->{$CONTENTS{sciper}}->{$objID}  or $superusers =~ /\b$CONTENTS{sciper}\b/);
 		erreur ("sciper vide")   unless $CONTENTS{sciperTodo};
 
 		if ($CONTENTS{add}) {
@@ -4270,6 +4327,7 @@ sub cons_obj {
 	}
 
 	if ($CONTENTS{op} eq 'majusers') { # - 
+		erreur ("Pas de droits") unless ($Admins->{$CONTENTS{sciper}}->{$objID}  or $superusers =~ /\b$CONTENTS{sciper}\b/);
 		print qq{<h3>Ressource : $obj->{nom}</h3>};
 		my $droits;
 		map {
@@ -4518,6 +4576,7 @@ warn ">> $objID users ".Dumper($droits);
 	}
 
 	if ($Admins->{$CONTENTS{sciper}}->{$objID}  or $superusers =~ /\b$CONTENTS{sciper}\b/) {
+
 		print qq{
 			<div style="background: #eeeeee;">
 			<h3>Gestion des utilisateurs pour cette ressource</h3>
@@ -4537,6 +4596,17 @@ warn ">> $objID users ".Dumper($droits);
 				<input type="submit"   name="add"   value="ajouter">
 			</li>
 			</ul>
+			</form>
+			<hr width="50%" align="left">
+			<h3>Notifier les utilisateurs de cette ressource</h3>
+			<form name="form" action="$URLres/cons_obj?objID=$objID&op=notify" method="post"  style="margin-left: 50px;">
+			Le message ci-dessous sera transmis aux utilisateurs de la ressource qui ont une adresse mail \@epfl.ch.<br>
+			Pour ce qui est des listes de mails des unités ou des groupes, la notification peut être soumise à modération.<br>
+			<b>Sujet</b><br>
+			<input type="text" name="subj" style="width: 80%;"> <br>
+			<b>Message</b><br>
+			<textarea name="msg" style="width: 80%; "></textarea><br>
+			<input type="submit" name="notify" value="envoyer">
 			</form>
 			<hr width="50%" align="left">
 			<h3>Droits explicites pour cette ressource</h3>
