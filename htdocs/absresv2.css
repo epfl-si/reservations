@@ -34,8 +34,3 @@ td.underline {padding:5px; border-bottom: 1px solid #aaaaaa;}
 .red_li 	{ margin-left:15px; padding-left:5px; list-style-image: url('/.icons/red_triangle.gif') ;}
 
 .valid_button{margin-top: 20px; margin-bottom: 20px; padding: 10px; padding-bottom: 15px; font-size: 110%; }
-
-//	- new CSS
-.left_column {
-
-}

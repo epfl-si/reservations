@@ -9,11 +9,14 @@ $URLabs			= "${ABS_HOME}/cgi-bin/abs";
 $URLres			= "${RES_HOME}/cgi-bin/res";
 #==============================================================
 
+use utf8;
 use Crypt::RC4;
 use Crypt::GCM;
 use Crypt::Rijndael;
 use Cadi::CadiDB;
 use Cadi::Accreds;
+
+#binmode (STDOUT, ':utf8');
 
 # ----------- constantes communes -----------------
 $thescript  	= $ENV{'SCRIPT_NAME'};
@@ -30,9 +33,10 @@ $DATE  				= 'ponctuelle';
 $DAILY 				= 'quotidienne';
 $HEBDO 				= 'chaque';
 $FIRST 				= 'le 1er';
-$SEC   				= 'le 2ème';
-$TROIS 				= 'le 3ème';
-$QUATRE 			= 'le 4ème';
+$SEC   				= 'le 2e';
+$TROIS 				= 'le 3e';
+$QUATRE 			= 'le 4e';
+
 $BIHEBDO 			= 'toutes les deux semaines';
 $TRIHEBDO 		= 'toutes les trois semaines';
 $LAST  				= 'le dernier';
@@ -556,7 +560,7 @@ warn "absres :: tools.pl : mailto :DEBUG=$DEBUG: dest=$dest, subj=$subj=";
   erreur ("mailto :: aucun destinataire") unless $to;
   $errmail =~ s/^,//;
   
-  $mail{To}   	 = $DEBUG ? $support : $to;
+  $mail{To}   	 = $DEBUG ? 'ion.cionca@epfl.ch' : $to;
   $mail{Smtp} 	 = 'mail.epfl.ch';
   $mail{Subject} = $subj;
   $mail{Message} = $msg;	
@@ -727,46 +731,46 @@ sub get_dates_from_name {
   my $tmp_d 	= &check_date($d1);
 
   if ($periodic eq $TRIHEBDO) {
-	while ($tmp_d le $d2) {
-	  my $tmp_dayname = get_day_name($tmp_d);
-	  if ($tmp_dayname eq $day_name) {
-		push (@ret_dates, $tmp_d);
-		$tmp_d = &get_next_n_day($tmp_d, 21);
-	  } else {
-		$tmp_d = &get_next_n_day($tmp_d, 1);
-	  }
+		while ($tmp_d le $d2) {
+			my $tmp_dayname = get_day_name($tmp_d);
+			if ($tmp_dayname eq $day_name) {
+				push (@ret_dates, $tmp_d);
+				$tmp_d = &get_next_n_day($tmp_d, 21);
+			} else {
+				$tmp_d = &get_next_n_day($tmp_d, 1);
+			}
     }
     return (@ret_dates);
   }
   if ($periodic eq $BIHEBDO) {
-	while ($tmp_d le $d2) {
-	  my $tmp_dayname = get_day_name($tmp_d);
-	  if ($tmp_dayname eq $day_name) {
-		push (@ret_dates, $tmp_d);
-		$tmp_d = &get_next_n_day($tmp_d, 14);
-	  } else {
-		$tmp_d = &get_next_n_day($tmp_d, 1);
-	  }
-    }
+		while ($tmp_d le $d2) {
+			my $tmp_dayname = get_day_name($tmp_d);
+			if ($tmp_dayname eq $day_name) {
+				push (@ret_dates, $tmp_d);
+				$tmp_d = &get_next_n_day($tmp_d, 14);
+			} else {
+				$tmp_d = &get_next_n_day($tmp_d, 1);
+			}
+		}
     return (@ret_dates);
   }
   if ($periodic eq $HEBDO) {
 	while ($tmp_d le $d2) {
 	  my $tmp_dayname = get_day_name($tmp_d);
 	  if ($tmp_dayname eq $day_name) {
-		push (@ret_dates, $tmp_d);
-		$tmp_d = &get_next_n_day($tmp_d, 7);
+			push (@ret_dates, $tmp_d);
+			$tmp_d = &get_next_n_day($tmp_d, 7);
 	  } else {
-		$tmp_d = &get_next_n_day($tmp_d, 1);
+			$tmp_d = &get_next_n_day($tmp_d, 1);
 	  }
 	}
     return (@ret_dates);
   }
   if ($periodic eq $DAILY) {
-	while ($tmp_d le $d2) {
-	  push (@ret_dates, $tmp_d);
-	  $tmp_d = &get_next_n_day($tmp_d, 1);
-	}
+		while ($tmp_d le $d2) {
+			push (@ret_dates, $tmp_d);
+			$tmp_d = &get_next_n_day($tmp_d, 1);
+		}
     return (@ret_dates);
   }
 
@@ -775,15 +779,15 @@ sub get_dates_from_name {
   $start_m		=~ s/^0//;
   my $start_y 	= substr ($d1,0,4);
   while ($tmp_d le $d2) {
-	foreach (&get_date_from_name($periodic, $day_name, $start_m, $start_y)) {
-      if ($_ ge $d1 && $_ le $d2) {
-		push (@ret_dates, $_);
-      }
-	}
-	$start_m++;
-	if ($start_m > 12) {
-		$start_m = 1; $start_y++;
-	}
+		foreach (&get_date_from_name($periodic, $day_name, $start_m, $start_y)) {
+			if ($_ ge $d1 && $_ le $d2) {
+				push (@ret_dates, $_);
+			}
+		}
+		$start_m++;
+		if ($start_m > 12) {
+			$start_m = 1; $start_y++;
+		}
   	$tmp_d = sprintf "%04d%02d01", $start_y, $start_m;
   }
   return (@ret_dates);
@@ -792,66 +796,65 @@ sub get_dates_from_name {
 #----
 sub get_date_from_name {
   my ($periodic, $day_name, $m, $y) = @_;
-
   my @dates 	= ();
   check_feb($y);
 
-  if ($periodic eq $periodics{$FIRST}) {
+  if ($periodic eq $FIRST) {
     for ($i =1; $i <= $mois[$m]; $i++) {
-	  my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
-	  if ($tmp_dayname eq $day_name) {
-		push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
-		return (@dates);
-	  }
+			my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
+			if ($tmp_dayname eq $day_name) {
+				push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
+				return (@dates);
+			}
     }
   }
-  if ($periodic eq $periodics{$LAST}) {
+  if ($periodic eq $LAST) {
     for ($i = $mois[$m]; $i > 0; $i--) {
-	  my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
-	  if ($tmp_dayname eq $day_name) {
-		push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
-		return (@dates);
-	  }
+			my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
+			if ($tmp_dayname eq $day_name) {
+				push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
+				return (@dates);
+			}
     }
   }
-  if ($periodic eq $periodics{$SEC}) {
+  if ($periodic eq $SEC) {
     $j = 0;
     for ($i =1; $i <= $mois[$m]; $i++) {
-	  my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
-	  if ($tmp_dayname eq $day_name) {
-		$j++;
-		if ($j == 2) { 
-		 push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
-		 return (@dates);
-		}
-	  }
+			my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
+			if ($tmp_dayname eq $day_name) {
+				$j++;
+				if ($j == 2) { 
+				 push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
+				 return (@dates);
+				}
+			}
     }
     return ($dates);
   }
-  if ($periodic eq $periodics{$TROIS}) {
+  if ($periodic eq $TROIS) {
     $j = 0;
     for ($i =1; $i <= $mois[$m]; $i++) {
-	  my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
-	  if ($tmp_dayname eq $day_name) {
-		$j++;
-		if ($j == 3) { 
-			push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
-			return (@dates);
-		}
-	  }
+			my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
+			if ($tmp_dayname eq $day_name) {
+				$j++;
+				if ($j == 3) { 
+					push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
+					return (@dates);
+				}
+			}
     }
   }
-  if ($periodic eq $periodics{$QUATRE}) {
+  if ($periodic eq $QUATRE) {
     $j = 0;
     for ($i =1; $i <= $mois[$m]; $i++) {
-	  my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
-	  if ($tmp_dayname eq $day_name) {
-		  $j++;
-		  if ($j == 4) { 
-			  push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
-			  return (@dates);
-		  }
-	  }
+			my $tmp_dayname = get_day_name(sprintf "%4d%2d%2d", $y,$m,$i);
+			if ($tmp_dayname eq $day_name) {
+				$j++;
+				if ($j == 4) { 
+					push (@dates, sprintf "%4d%02d%02d", $y, $m, $i);
+					return (@dates);
+				}
+			}
     }
   }
 }

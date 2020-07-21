@@ -20,6 +20,7 @@ get_time ();
 
 $dbh = new Cadi::CadiDB (
 	  dbname => 'reservations',
+	  utf8 => 1,
  ) unless $dbh;
  erreur ("FATAL DB ACCESS") unless $dbh;
 
@@ -59,6 +60,11 @@ sub execute {
 		Cadi::WSUtils::error ($req, "no res ID") 	unless $args->{resID};
 		my %res = getRes ($args->{resID});
 		Cadi::WSUtils::error ($req, "unknown res") 	unless $res{res_id};
+		Cadi::WSUtils::error ($req, "resID unknown for objID") 	unless $res{obj_id} eq $args->{objID};
+
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'getRes');
+
 		Cadi::WSUtils::json_response ( { result => \%res, } );
 		exit;
 		
@@ -68,6 +74,10 @@ sub execute {
 		my $datedeb = $args->{datedeb} ? $args->{datedeb} : $crt_date;
 		my $datefin = $args->{datefin}   ? $args->{datefin} : $crt_date;
 		my @res 	  = getObjRes ($args->{objID}, $datedeb, $datefin);
+
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'listRes');
+
 		Cadi::WSUtils::json_response ( { result => \@res, } );
 		exit;
   }
@@ -126,6 +136,9 @@ sub execute {
 			$sth = $dbh->prepare( $sql) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error prepare\n$DBI::errstr\n$sql\n", }, } );
 			$sth->execute (($res_id, $date)) or Cadi::WSUtils::json_response ( { result => { status => "database fatal error : $args->{objID}, $res_id : $DBI::errstr", }, } );
 		}
+		
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'addRes');
 
 		logger ( $args->{objID}, $res_id, qq{add res : $args->{name} [ $args->{datedeb}, $args->{datefin}, $args->{periodic}, $args->{jour}, $args->{hdeb}-$args->{hfin} ]});
 		Cadi::WSUtils::json_response ( { result => { status => 'OK', resID => $res_id, }, } );
@@ -141,6 +154,7 @@ sub execute {
 		Cadi::WSUtils::error ($req, "no res ID") 	unless $args->{resID};
 		my %res = getRes ($args->{resID});
 		Cadi::WSUtils::error ($req, "unknown res") 	unless $res{res_id};
+		Cadi::WSUtils::error ($req, "resID unknown for objID") 	unless $res{obj_id} eq $args->{objID};
 		Cadi::WSUtils::error ($req, "no RW rights") unless $objTokens->{$args->{token}}->{rights} eq 'RW';
 
 		my $sql = qq{delete from dates where res_id=?};
@@ -151,6 +165,9 @@ sub execute {
 		my $sth = $dbh->prepare( $sql)   or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error prepare\n$DBI::errstr\n$sql\n", }, } );
 		$sth->execute (($args->{resID})) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error : execute : $DBI::errstr", }, } );
 
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'delRes');
+
 		logger ($res{obj_id}, $args->{resID}, qq{del res : $res{nom} [ $res{datedeb}, $res{datefin}, $res{periodic}, $res{jour}, $res{hdeb}-$res{hfin} ]});
 		Cadi::WSUtils::json_response ( { result => { status => 'OK', }, } );
 		exit;
@@ -160,6 +177,9 @@ sub execute {
   if ($command =~ /^getObj$/) {		#	- infos ressource
 
 		my %obj = getObj ($args->{objID});
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'getObj');
+
 		Cadi::WSUtils::json_response ( { result => \%obj, } );
 		exit;
 		
@@ -172,6 +192,17 @@ sub execute {
   }, } );
 	
   exit;
+
+}
+
+sub updtToken_lastUse {
+	my $token_id = shift;
+	my $op 			 = shift;
+	return unless $token_id && $op;
+	
+	my $sql = qq{update tokens set last_op=?, last_use=now() where id=?};
+	my $sth = $dbh->prepare( $sql) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error prepare\n$DBI::errstr\n$sql\n", }, } );
+	$sth->execute ($op, $token_id) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error : execute : $DBI::errstr", }, } );
 
 }
 

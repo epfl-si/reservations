@@ -22,9 +22,10 @@ use Mail::Sendmail;
 use Data::Dumper;
 
 use Cadi::Groups;
+use Cadi::Persons;
 use Tequila::Client;
 
-binmode (STDOUT, ':utf8');
+#binmode (STDOUT, ':utf8');
 
 $ENV {SERVER_NAME} = $ENV {SITE_URL} if ($ENV {SERVER_NAME} eq '127.0.0.1' && $ENV {SITE_URL});
 require 'res-tools.pl';
@@ -89,9 +90,9 @@ $login_as 			= '276008';
 $login_as 			= '276008';
 $login_as 			= '136108';
 $login_as 			= '140973';
-$login_as 			= '109324';
-$login_as 			= '140973';
-$login_as 			= '112215';
+
+$login_as 			= '118873';
+#$login_as 			= '263371';
 #	---------
 	
 %CONTENTS  			= &loadargs ();
@@ -105,7 +106,7 @@ use vars qw( $allObjects $allUnitsUsers @allunits $userObjects $res $dinfo $dbh 
 # $dbh   = dbconnect ('reservations');
  $dbh = new Cadi::CadiDB (
 	  dbname => 'reservations',
-#		utf8 => 1,
+		utf8 => 1,
  ) unless $dbh;
  erreur ("FATAL DB ACCESS") unless $dbh;
 
@@ -117,7 +118,9 @@ use vars qw( $allObjects $allUnitsUsers @allunits $userObjects $res $dinfo $dbh 
  my $Groupes = new Cadi::Groups (
  	caller => '104782', 
  );
-    
+ my $Persons = new Cadi::Persons (
+ 	caller => '104782', 
+ );    
 my $LAST_DATE  = get_next_n_day($crt_date, 730);	# - res max 2 ans à l'avance
 
 list_res ()  if $pathinfo =~ /^\/list_res/;
@@ -508,14 +511,24 @@ sub getObjUsers {
   		next unless $sigle;
   		push @scipers, keys %{$allUnitsUsersBySigle{$sigle}};
   	}
+  }
+  my @members;
+  if ($allObjects->{$objID}->{objdata}->{groupes}) {	# implicit access
   	foreach my $groupe (split(/,/, $allObjects->{$objID}->{objdata}->{groupes})) {
   		next unless $groupe;
-  		my @members = $Groupes->listMembers($groupe);
+  		push @members, $Groupes->listMembers($groupe);
   	}
   }
-
-  return sort_uniq (@scipers);
-
+  my $users;
+  map {
+  	$users->{$_} = 1;
+  } @scipers;
+  map {
+  	$users->{$_->{id}} = 1 if $_->{id} =~ /^\d\d\d\d\d\d$/;
+  } @members;
+	@scipers = keys %$users;
+#warn ">> getObjUsers : scipers\n".Dumper(@scipers);
+	@scipers;
 }
 
 #__________________
@@ -600,6 +613,7 @@ sub objAccessAllowed {
   my ($objID) = @_;
 
 my $verbose = 1 if $CONTENTS{sciper} eq '136108';
+$verbose = 0;
   return 1 if $CONTENTS{sciper} and $superusers =~ /$CONTENTS{sciper}/;
   unless ($objID) {
   	foreach my $obj_id (keys %{$Admins->{$CONTENTS{sciper}}}) {
@@ -622,14 +636,17 @@ warn "   2 objAccessAllowed : $objID\n" if $verbose;
 warn "   3 objAccessAllowed : $objID\n" if $verbose;
   		return 1 if exists $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}} and $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}}->{reg};
 		} elsif ($allObjects->{$objID}->{objdata}->{disp} eq 'd') {
+warn "   4 objAccessAllowed : $objID\n" if $verbose;
 				return 1 if exists $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}} && $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}}->{droit} ne 'R';
 		} elsif ($allObjects->{$objID}->{objdata}->{datedeb} and $allObjects->{$objID}->{objdata}->{datedeb}  ne '0000-00-00') {
+warn "   5 objAccessAllowed : $objID\n" if $verbose;
   		if ($allObjects->{$objID}->{objdata}->{datedeb} le $crt_date and $crt_date le $allObjects->{$objID}->{objdata}->{datefin}) {
 	  		return 1 if exists $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}} && $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}}->{droit} ne 'R';
   		}
 			return 0;
 		}
   } else {		#	- consultation
+warn "   6 objAccessAllowed : $objID\n" if $verbose;
 		return 1 unless $allObjects->{$objID}->{objdata}->{visible} eq 'r';
 		return 1 if exists $allObjects->{$objID}->{usrdata}->{$CONTENTS{sciper}};
   }
@@ -1138,6 +1155,8 @@ sub disp_res {
    erreur ("identificateur de réservation absent", 1) unless $res_id;
 
    my %res 	 = getRes ($res_id);
+  erreur (qq{la réservation n'existe pas ou a été annulée}) unless $res{res_id};
+
    my $dates_txt;
    foreach my $date (@{$res{dates}}) {
    	$date =~ s/\-//g;
@@ -2550,80 +2569,6 @@ sub resConflict {
 }
 
 #__________________
-sub resConflict_OLD {
-  my ($objID, $res_id, $debut, $fin, $pool, $refdates) = @_;
-
-  return unless $objID and $refdates and $debut and $fin;
-
-  my @conflicts;
-  my $obj_dispo = $userObjects->{$objID}->{objdata}->{pool} - $pool;
-  my @dates  	= @$refdates;
-  @$refdates 	= ();
-  foreach my $date (@dates) {
-		$date 			 = substr($date,0,4)."-".substr($date,4,2)."-".substr($date,6,2);
-		my $reserved = 0;
-		my $sql = qq{select * from dates, res where 
-		dates.date = ? and
-		res.id=dates.res_id and
-		res.obj_id = ?
-		order by date,hdeb
-		};
-		my $sth = dbquery($sql, $date, $objID);
-
-		while (my $data = $sth->fetchrow_hashref) {
-			next if $res_id == $data->{res_id};
-			if (
-				($debut ge $data->{hdeb} and $debut lt $data->{hfin}) or
-				($fin   gt $data->{hdeb} and $fin   le $data->{hfin}) or
-				($debut le $data->{hdeb} and $fin   ge $data->{hfin}) 
-			) {
-				push @conflicts, "$data->{res_id}\t$date\t$data->{hdeb}\t$data->{hfin}]\t$data->{nom}\t$data->{sciper}\t$data->{pool}";
-				$reserved += $data->{pool};
-			}
-		}
-		if ( $obj_dispo - $reserved >= 0 ) {
-			$date =~ s/\-//g;
-			push @$refdates, $date;	# - valid date, put it back
-		}
-  }
-
-  if ( scalar @conflicts ) {
-		my $pool = qq{ [ nb. obj : $userObjects->{$objID}->{objdata}->{pool} ] } if $userObjects->{$objID}->{objdata}->{pool} > 1;
-		print "
-		<h4><font color=red>Conflits de dates ou plus de ressources disponibles</font></h4><br>
-		Il y a déjà des réservations pour <b>$userObjects->{$objID}->{objdata}->{nom}</b> $pool pour les dates suivantes
-		<style>
-		th { font-weight: bold; background: #dddddd; margin: 0; }
-		td { padding: 2px 10px 0 5px; border-bottom: 1px solid #aaaaaa; }
-		</style>
-		<table cellspacing=0 cellpadding=0 style='background: #eeeeee;'><th>date<th>de<th>à<th>nb. d'objets<th>réservé pour<th>par
-		";
-  	foreach (@conflicts) {
-		my ($res_id, $date, $hdeb, $hfin, $nom, $sciper, $pool) = split (/\t/, $_);
-		$date =~ s/\-//g;
-		print qq{
-			<tr>
-			  <td>}. &rev_date($date). qq{
-			  <td>$hdeb
-			  <td>$hfin
-			  <td align=middle>$pool
-			  <td><a href=$thescript/disp_res?res_id=$res_id>$nom
-			  <td>$dinfo->{$sciper}->{nom}&nbsp;$dinfo->{$sciper}->{prenom}
-			  </a>};
-  	}
-	print "</table><hr>";
-	
-	unless (scalar @$refdates) {	# - no dates
-		my $errtxt  = "Réservation refusée. ";
-		   $errtxt .= "<br>Vérifier la disponibilité d'objets du pool de cette ressource" if $userObjects->{$objID}->{objdata}->{pool} > 1;
-		&erreur ($errtxt, 1);
-	} else {
-		print qq{<p><span style="color:red;font-weight:bold;">Les dates en conflit ont été enlevées de la liste ci-dessous.</span></p>};
-	}
-  }
-}
-
-#__________________
 sub mod_res {
   my ($res_id)= $CONTENTS{res_id};
   
@@ -2647,19 +2592,14 @@ sub mod_res {
 	 
 		 logger ($res{obj_id}, $res_id, qq{del res : $res{nom} [$userObjects->{$res{obj_id}}->{objdata}->{nom},$res{periodic},$res{jour},$res{hdeb}-$res{hfin}]});
 
-		callBack ({
-			action => 'del',
-			res	 	 => \%res,
-		});
-	 
-		my $msg = qq{
+			my $msg = qq{
 Réservation annulée
 
     Ressource : $userObjects->{$res{obj_id}}->{objdata}->{nom}
 Annulation par: $dinfo->{$CONTENTS{sciper}}->{nom}  $dinfo->{$CONTENTS{sciper}}->{prenom}};
- 	$msg .= qq{
+ 		$msg .= qq{
  Réservé pour : $dinfo->{$sciper}->{nom}  $dinfo->{$sciper}->{prenom}} if $CONTENTS{sciper} ne $sciper;
- 	$msg .= qq{
+ 		$msg .= qq{
        Raison : $res{nom} [ $res{descr} ]
          Date : @{$res{dates}}
   Périodicité : $res{periodic}
@@ -2671,6 +2611,12 @@ L'accès à l'application (authentification Gaspar/Tequila requise) : $URLres
 
 Votre système de gestion des réservations
 		};
+		
+		callBack ({
+			action => 'del',
+			res	 	 => \%res,
+		});
+	 
 		notifyUsers($res{obj_id}, $msg);
 
   }
@@ -3022,8 +2968,8 @@ sub done_res {
    erreur ("le début de réservation est après la fin", 1) 			 if $CONTENTS{hdeb} gt $CONTENTS{hfin};
    
    my $obj = $allObjects->{$CONTENTS{objID}}->{objdata};
-
    erreur("ressource inconnue") unless $obj;
+
    if ($obj->{pool} > 1) {
 	  erreur ("nb d'objets non numérique", 1) if $CONTENTS{pool} and $CONTENTS{pool} =~ /\D/;
 	  erreur ("nb d'objets réservés ($CONTENTS{pool}) dépasse la taille du pool ($obj->{pool})", 1)	if $CONTENTS{pool} and $CONTENTS{pool} > $obj->{pool};
@@ -3089,22 +3035,22 @@ sub done_res {
 	  &resConflict($CONTENTS{objID}, $CONTENTS{res_id}, $CONTENTS{hdeb}, $CONTENTS{hfin}, $CONTENTS{pool}, \@dates);
 	  foreach $td (@dates) {
 	  	if (&objDispo($CONTENTS{objID}, $td)) {
-			push @sel_dates, $td;
-		} else {
-			print "<br><font color=red>date: ".&rev_date($td)." - objet/salle indisponible</font>
-			- contacter votre administateur de l\'application";
-		}
+				push @sel_dates, $td;
+			} else {
+				print "<br><font color=red>date: ".&rev_date($td)." - objet/salle indisponible</font>
+				- contacter votre administateur de l\'application";
+			}
 	  }
   
 	  &listdates ($CONTENTS{objID}, \@sel_dates, \@sel_dates);
    } else {
 	  foreach $td (split (/ /, $CONTENTS{dates})) {
 	  	if (&objDispo($CONTENTS{objID}, $td)) {
-			push @sel_dates, $td;
-		} else {
-			print "<br><font color=red>date: ".&rev_date($td)." - objet/salle indisponible</font>
-			- pas de réservation pour cette date";
-		}
+				push @sel_dates, $td;
+			} else {
+				print "<br><font color=red>date: ".&rev_date($td)." - objet/salle indisponible</font>
+				- pas de réservation pour cette date";
+			}
 	  }
 
 	  &resConflict($CONTENTS{objID}, $CONTENTS{res_id}, $CONTENTS{hdeb}, $CONTENTS{hfin}, $CONTENTS{pool}, \@sel_dates);
@@ -3199,14 +3145,17 @@ sub listdates {
    my $datefin = pop @$dates;
    my $datedeb = shift @$dates;
    unless ($datedeb) {
-	$datedeb = $datefin;
+		$datedeb = $datefin;
    } else {
-	unshift @$dates, $datedeb;
+		unshift @$dates, $datedeb;
    }
    push    @$dates, $datefin;
 
    print qq{<input type="hidden" name="datedeb" value="$datedeb">};
    print qq{<input type="hidden" name="datefin" value="$datefin">};
+
+	 utf8::decode ($CONTENTS{noms});
+	 utf8::decode ($CONTENTS{descr});
 
    print qq{
    <tr><td><b>raison:</b><td><input 	name="noms"  value="$CONTENTS{noms}">
@@ -3313,14 +3262,27 @@ sub ges_res {
 #__________________
 sub sel_user {
   my ($param, $value, $all) = @_;
+
   my @objUsers = getObjUsers ($CONTENTS{objID});
   erreur ("Aucun utilisateur pour cette ressource, veuillez avertir le support technique") unless scalar @objUsers;
 
   print qq{<select name="$param" id="users" onchange="getUserAccreds('users');">};
   print qq{<option value="" selected>$all</option>} if $all;
   print qq{<option value="-1" selected>-- choisir --</option>} unless $value;
+
+  foreach my $sciper ( @objUsers ) {
+  	unless ($dinfo->{$sciper}->{nom}) {
+  		my $person = $Persons->getPerson($sciper);
+  		if ($person) {
+  			$dinfo->{$sciper}->{nom} 		= $person->{name};
+  			$dinfo->{$sciper}->{prenom} = $person->{firstname};
+  		} 
+  	}
+  }
+  
   foreach my $sciper (sort {lc($dinfo->{$a}->{nom}) cmp lc($dinfo->{$b}->{nom})} @objUsers) {
-  	next unless $dinfo->{$sciper}->{nom};
+  	next unless ($dinfo->{$sciper}->{nom});
+  	
   	my $selected = $sciper eq $value ? 'selected' : '';
   	print qq{<option value="$sciper" $selected>$dinfo->{$sciper}->{nom} $dinfo->{$sciper}->{prenom}</option>}
   }
@@ -4253,7 +4215,8 @@ sub cons_obj {
 		$dest =~ s/,$//;
 		erreur("Aucun destinataire") unless $dest;
 	
-#	  sendMail ($dest, $CONTENTS{subj}, $CONTENTS{msg}) ;
+#warn ">> cons_obj notify : dest=$dest\m";
+	  sendMail ($dest, $CONTENTS{subj}, $CONTENTS{msg}) ;
 		my $dest_txt;
 		map { 
 			$dest_txt .= qq{<li>$_</li>} if $_
@@ -4300,7 +4263,6 @@ sub cons_obj {
 				&footpage();
 			}
 			
-			
 		} else {
 			erreur ("sciper erroné");
 		}
@@ -4342,7 +4304,6 @@ sub cons_obj {
 		my %scipers= map {$_, 1} split (/ /, $CONTENTS{scipers});
 		my %mails	 = map {$_, 1} split (/ /, $CONTENTS{mail});
 
-warn ">> $objID users ".Dumper($droits);		
 		my ($del, @todo);
 		if ($CONTENTS{del}) {	# - efface tous les droits explicites
 			$del  = join ',', keys %scipers;
@@ -4361,12 +4322,14 @@ warn ">> $objID users ".Dumper($droits);
 		
 		if (@todo) {
 			print qq{<hr><p><b>Mise à jour des droits explicites</b> :</p>};
-			foreach my $sciper (@todo) {
+			foreach my $sciper (sort {qq{$dinfo->{$a}->{nom} $dinfo->{$a}->{prenom}} cmp qq{$dinfo->{$b}->{nom} $dinfo->{$b}->{prenom}} } @todo) {
 				my $sql = qq{update users set droit=?, mail=? where obj_id=? and sciper=?};		
 		 		dbquery($sql, $droits->{$sciper}, $mails{$sciper}, $objID, $sciper);
-				print qq{<br>$dinfo->{$sciper}->{nom} $dinfo->{$sciper}->{prenom} ($sciper) : accès explicite ($droits->{$sciper})};
-				print qq{, admin} if $usres->{$sciper};
-				print qq{, mail}  if $mails{$sciper};
+				print qq{<br>$dinfo->{$sciper}->{nom} $dinfo->{$sciper}->{prenom} ($sciper) : accès explicite : };
+				print qq{admin } 			  if $droits->{$sciper} eq 'A';
+				print qq{réservation }  if $droits->{$sciper} eq 'W';
+				print qq{consultation } if $droits->{$sciper} eq 'R';
+				print qq{mail}  			  if $mails{$sciper};
 			}
 		}		
 		
@@ -4435,10 +4398,23 @@ warn ">> $objID users ".Dumper($droits);
 			<input type="button" value="modifier la ressource" OnClick="javascript:location.href='$URLres/maj_obj?objID=$objID'">
 			<input type="button" value="effacer la ressource" OnClick="if (confirm('Effacer cette ressource et toutes les réservations ?')) { javascript:location.href='$URLres/maj_obj?objID=$objID&op=del'}">
 			<hr>
-			<b>Autorisations d'accès par webservice</b> [ <a href="#" onclick="
+			<b>Autorisations d'accès par webservice</b> :
+			<a href="#" onclick="
 						if (confirm ('Annuler toutes les autorisations pour cette ressource ?')) {
 							location.href='$URLres/maj_token?objID=$objID&op=del_all'; 
-						}">Annuler toutes les autorisations</a> ]
+						}">Annuler toutes les autorisations</a> | 
+			<a href="#" onclick="
+				if (document.getElementById('form').style.display == 'block') {
+					document.getElementById('form').style.display='none'; 
+				} else {
+					document.getElementById('tokenID').value   = '';
+					document.getElementById('tokenName').value = '';
+					document.getElementById('tokenDescr').value= '';
+					document.getElementById('op').value 			 = 'add';
+					document.getElementById('form').style.display='block'; 
+				}
+				return false;
+			">Nouvelle autorisation</a>						
 			<div style="margin-left: 20px;">
 				<div style="display: flex; font-weight: bold; ">
 		};
@@ -4447,9 +4423,9 @@ warn ">> $objID users ".Dumper($droits);
 		} if $IP_BASED_AUTH;
 		#	- tokens web service
 		print qq{
-					<div style="width: 640px; margin-left: 10px;">Token</div>
+					<div style="width: 660px; margin-left: 10px;">Token</div>
 					<div style="width: 90px;margin-left: 10px;">Accès </div>
-					<div style="width: 90px;margin-left: 10px;">Action</div>
+					<div style="width: 150px;margin-left: 10px;">Action</div>
 				</div>
 		};
 		my $objTokens = get_obj_tokens ($objID);
@@ -4461,29 +4437,69 @@ warn ">> $objID users ".Dumper($droits);
 			print qq{
 					<div style="width: 90px;">$token->{host}</div>
 			} if $IP_BASED_AUTH;
+
+			my $tokenLine = $token->{name}
+										? qq{$token->{name} - $token->{descr}}
+										: $token->{id};
+			my $descr = $token->{descr};
+			   $descr =~ s/'/\\'/;
 			print qq{
-					<div style="width: 640px; margin-left: 10px;">$token->{id}</div>
+					<div style="width: 660px; margin-left: 10px;">$tokenLine</div>
 					<div style="width: 90px; margin-left: 10px;">$token->{rights}</div>
-					<div style="width: 90px; margin-left: 10px;"><a href="#" onclick="
+					<div style="width: 150px; margin-left: 10px;">
+						<a href="#" onclick="
 						if (confirm ('Annuler l accès depuis cette adresse ?')) {
 							location.href='$URLres/maj_token?objID=$objID&op=del&tokenID=$token_id'; 
-						}">Annuler</a></div>
+						}">Annuler</a> |
+						<a href="#" onclick="
+							document.getElementById('tokenID').value 	 			 = '$token->{id}';
+							document.getElementById('tokenHeader').innerHTML = 'Token ID: $token->{id}<br>' +
+								'Last used: $token->{last_use}<br>' +
+								'Last action: $token->{last_op}<hr>'
+							;
+							document.getElementById('tokenName').value = '$token->{name}';
+							document.getElementById('tokenDescr').value= '$descr';
+							var right = '$token->{rights}';
+							if ( right == 'RO') {
+								document.getElementById('rights').options.selectedIndex = 0;
+							} else {
+								document.getElementById('rights').options.selectedIndex = 1;
+							}
+							document.getElementById('op').value 				= 'updt';
+							
+							document.getElementById('form').style.display='block'; 
+							return false;
+						">Edit</a>
+					</div>
 				</div>
 			};
 		}
 		print qq{
 			<br>
-			<form name="form" action="$URLres/maj_token">
+			<form name="form" action="$URLres/maj_token" id="form" style=" padding: 20px; border: 1px solid #aaaaaa; display: none;">
+			<a href="#" style="float: right;" onclick="document.getElementById('form').style.display='none'; ">x</a>
+			<b>Token</b>
+			<br>
 			<input type="hidden" name="objID" value="$objID">
-			<input type="hidden" name="op" value="add">
-			<div style="display: flex;">
-			 <div >	<b>Nouvelle autorisation</b></div>
-			 <div style="margin-left: 10px;">Accès : <select name="rights">
-					<option value="RO" selected>RO</option>
-					<option value="RW">RW</option>
-					</select>
-			 </div>
-			 <div  style="margin-left: 10px;"><input type="submit" name="add" value="Ajouter"></div>
+			<input type="hidden" name="op" id="op">
+			<input type="hidden" name="tokenID" id="tokenID">
+
+			 <div style="margin-left: 15px; ">
+			 	 <div id="tokenHeader"></div>
+				 <label style="width: 75px;">Accès : </label>
+				 <select name="rights" id="rights">
+						<option value="RO" selected>RO</option>
+						<option value="RW">RW</option>
+						</select>
+				 <br>
+					<label style="width: 75px;">Nom  :</label>
+					<input name="tokenName" id="tokenName" size="48">
+				 <br>
+
+					<div style="width: 75px; vertical-align: top; display: inline;">Description</div>
+					<textarea name="tokenDescr" id="tokenDescr" cols="64" rows="3"  style="display: inline;"></textarea>
+				 <br>
+					<input type="submit" name="add" value="Enregistrer">
 			</div>
 			</form>
 		};
@@ -4641,10 +4657,8 @@ warn ">> $objID users ".Dumper($droits);
 		}
 		print qq{
 			</table>
-			<br><b>Actions :</b>
 			<br>
-			Mise à jour pour la sélection - <input name="maj" type="submit" value="enregistrer">
-			<p>Effacer tous les droits explicites non-admin et sans notification mail : <input name="del" type="submit" value="effacer" id="del" OnClick="return confirm('Effacer les accès explicites ?');">
+			<input name="maj" type="submit" value="Enregistrer"> - les comptes sans droits <b>admin</b>, <b>consultation</b> ou <b>réservation</b> seront supprimés
 		</form>
 		</div>
 		};
@@ -4737,7 +4751,7 @@ sub sendMail {
   $mail{From} 	 = $generic_mail; 
 
 warn "sendMail [DEBUG=$DEBUG] :: To : $dest\n";
-return if $DEBUG;
+	$dest = 'ion.cionca@epfl.ch' if $DEBUG;
 
   $mail{To}   	 = $dest;
   $mail{Smtp} 	 = 'mail.epfl.ch';
@@ -4746,12 +4760,12 @@ return if $DEBUG;
   $mail{'Content-Transfer-Encoding'} = '8bit';	
   if (sendmail (%mail)) {
      if ($Mail::Sendmail::error) {
-		warn "sendMail  :: ** ERR 1 [$Mail::Sendmail::error]";
+warn "sendMail  :: ** ERR 1 [$Mail::Sendmail::error]";
      } else {
 	   $msg =~ s/\n/;/g;
      }
   } else {
-	warn "sendMail  :: ** ERR 2 [$Mail::Sendmail::error]";
+warn "sendMail  :: ** ERR 2 [$Mail::Sendmail::error]";
   }
 
 }
@@ -5122,6 +5136,17 @@ sub maj_token {
 
 		logger ($CONTENTS{objID}, '', qq{add token : $CONTENTS{rights}}) ; 
    }
+
+   if ($CONTENTS{op} eq 'updt') {
+		erreur ("autorisation absente") unless $CONTENTS{tokenID};
+   	erreur ("autorisation pas trouvée pour cette ressource") unless defined $objTokens->{$CONTENTS{tokenID}};
+#		erreur ("adresse IP erronée") if  $IP_BASED_AUTH and ! chkEPFLIP ( $CONTENTS{host} );
+
+		my $sql = qq{update tokens set name=?, descr=?, rights=? where id=?};
+		dbquery($sql, $CONTENTS{tokenName}, $CONTENTS{tokenDescr}, $CONTENTS{rights}, $CONTENTS{tokenID});
+
+		logger ($CONTENTS{objID}, '', qq{updt token $CONTENTS{tokenID} : $CONTENTS{tokenName}, $CONTENTS{rights}, $CONTENTS{tokenDescr}}) ; 
+   }
    
    print qq{
    	<script>
@@ -5251,28 +5276,34 @@ sub majCallBack {
 #_________________
 sub callBack {
 	return unless $USE_CALLBACK;
-	
+
+my $verbose = 1;	
 	my $params = shift;
-warn ">> callBack params ".Dumper($params);
+warn ">> callBack params ".Dumper($params) if $verbose;
 	return { result => 'false', message => qq{paramètre callback action absent}} unless $params->{action};
-warn "==>> callBack 0\n";
+warn "==>> callBack 0\n" if $verbose;
 	return { result => 'false', message => qq{paramètre callback res absent}} 	 unless $params->{res};
-warn "==>> callBack 1\n";
+warn "==>> callBack 1\n" if $verbose;
 	my $objID = $params->{res}->{objID} ? $params->{res}->{objID} : $params->{res}->{obj_id};
 	
 	my %obj = getObj($objID);
 	return { result => 'false', message => qq{objet de réservation pas trouvé}} unless %obj;
-warn "==>> callBack 2\n";
+warn "==>> callBack 2\n" if $verbose;
 	my $callback = getCallBack ($objID);
 	return unless $callback && $callback->{active};
-warn "==>> callBack 3\n";
+
+  my %res = getRes ($params->{res}->{res_id});
+  return { result => 'false', message => qq{la réservation n'existe pas ou a été annulée'}} unless $res{res_id};
+
+	utf8::decode ($params->{res}->{nom});
+	utf8::decode ($params->{res}->{descr});
 
 	my $post = {
 		action 		=> $params->{action},
 		resID 		=> $params->{res}->{res_id},
 		dates 		=> $params->{res}->{dates},
 		hdeb 			=> $params->{res}->{hdeb},
-		hfin 			=> $params->{res}->{hdeb},
+		hfin 			=> $params->{res}->{hfin},
 		resNom 		=> $params->{res}->{nom},
 		resDescr  => $params->{res}->{descr},
 		objID		  => $objID,
@@ -5282,7 +5313,7 @@ warn "==>> callBack 3\n";
 		token 		=> $callback->{token},
 		sciper 		=> $CONTENTS{sciper},
 	};
-print qq{<pre>callBack }.Dumper($post).'</pre>';
+warn qq{callBack }.Dumper($post) if $verbose;
 
 	#	- call back
 	my $ua 		= LWP::UserAgent->new;
@@ -5296,9 +5327,9 @@ print qq{<pre>callBack }.Dumper($post).'</pre>';
 		alarm 0;
 	};
 	unless ($response->is_success) {
-warn "==> callback KO: ".$response->status_line;
+warn "==> callback KO: ".$response->status_line  if $verbose;
 	} else {
-warn "==> callback OK: ".$response->status_line;
+warn "==> callback OK: ".$response->status_line  if $verbose;
 #		$bottin_atela = decode_json($response->decoded_content);
 	}
 
