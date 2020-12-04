@@ -85,14 +85,7 @@ my $NOTIFYUSER 	= 0;
 my $USE_CALLBACK= 1;
 
 #	---------
-$login_as 			= '118873';
-$login_as 			= '276008';
-$login_as 			= '276008';
-$login_as 			= '136108';
-$login_as 			= '140973';
-
-$login_as 			= '118873';
-#$login_as 			= '263371';
+$login_as 			= '129136';
 #	---------
 	
 %CONTENTS  			= &loadargs ();
@@ -411,8 +404,6 @@ sub getAllObjects {
   my $allObjects;
   my $scipertodo = $CONTENTS{sciper};
 
-warn ">> getAllObjects : start\n";
-
   @commonUnits = @allunits;
 
   my $sql = qq{select * from users left join obj on obj.id=users.obj_id  };
@@ -431,8 +422,6 @@ warn ">> getAllObjects : start\n";
 		$allObjects->{$data->{id}}->{usrdata}->{$data->{sciper}}->{droit} = $data->{droit};
 		$allObjects->{$data->{id}}->{usrdata}->{$data->{sciper}}->{mail}  = $data->{mail};
   }
-
-warn ">> getAllObjects : ".Dumper($allObjects->{3772});
   
   $allObjects;
 
@@ -527,7 +516,6 @@ sub getObjUsers {
   	$users->{$_->{id}} = 1 if $_->{id} =~ /^\d\d\d\d\d\d$/;
   } @members;
 	@scipers = keys %$users;
-#warn ">> getObjUsers : scipers\n".Dumper(@scipers);
 	@scipers;
 }
 
@@ -805,6 +793,7 @@ sub majObject {
 	return unless $nom;
 
 	my $sql;
+	my $op;
 	if ($obj_id) {		# - maj
 
 	    erreur ("pas de droits d'administration", 1) unless exists $Admins->{$CONTENTS{sciper}}->{$obj_id}  or $superusers =~ /\b$CONTENTS{sciper}\b/;
@@ -829,6 +818,7 @@ sub majObject {
 			hide=?
 		where id=$obj_id
 		};
+		$op = 'maj obj';
 
 	} else {	# - new
 	    erreur ("pas de droits d'administration", 1) unless exists $Admins->{$CONTENTS{sciper}}  or $superusers =~ /\b$CONTENTS{sciper}\b/;
@@ -846,6 +836,7 @@ sub majObject {
 			plan=?,
 			hide=?
 		};
+		$op = 'new obj';
 		
 	}
 	dbquery($sql, $nom, $pool, $max_pool, $descr, $disp, $visible, $datedeb, $datefin, $unites, $groupes, $plan, $hide);
@@ -860,8 +851,9 @@ sub majObject {
 			droit  => 'A', 
 			obj_id => $obj_id,
 			});
-
 	}
+	logger ($obj_id, '', qq{$op $obj_id [$descr] par $CONTENTS{sciper}}) ; 
+
 	erreur ("erreur mise à jour ressource : veuillez contacter le support", 1) unless $obj_id;
 
 	my $msg = qq{
@@ -1011,7 +1003,7 @@ sub addRes {
 		res	 	 => $res,
 	});
 	
-	logger ($obj_id, $res_id, qq{new res : $nom : $CONTENTS{sciper} $unite [$userObjects->{$obj_id}->{objdata}->{nom}, $periodic, $jour, $hdeb-$hfin]});
+	logger ($obj_id, $res_id, qq{new res : $nom : $CONTENTS{sciper} $unite [$userObjects->{$obj_id}->{objdata}->{nom}, @$dates, $periodic, $jour, $hdeb-$hfin]});
 
 	my $msg = qq{
 Nouvelle réservation
@@ -1467,6 +1459,7 @@ sub footpage {
     <hr>
 	<h4>FAQs</h4>
 	<li><img alt="" src="/images/new_small.gif" style="height:12px; width:31px"> <a href="https://wiki.epfl.ch/resfaq#q1">quoi de neuf ?</a>
+	<br>- API callback
 	<br>- droit de consultation
 	<br>- notifications</li>
 	<li><img alt="" src="/images/new_small.gif" style="height:12px; width:31px"> <a href="https://wiki.epfl.ch/resfaq#q1">quoi de neuf ?</a> (droit de consultation)</li>
@@ -1838,13 +1831,13 @@ sub listRes {
 			$user  = qq{$dinfo->{$sciper}->{nom} $dinfo->{$sciper}->{prenom}};
 			$user  =~ s/;//g;
 
-			my $unitsigle 	= getUnitById($unite) if $unite;
-
 			getUserData ($sciper) unless defined $dinfo->{$sciper};
-
-			unless ($unite) {
+			my $unitsigle;
+			if ($unite) {
+				$unitsigle 	= $dinfo->{$sciper}->{accreds}->{$unite}->{sigle};
+			} else {
 				map { if ($dinfo->{$sciper}->{accreds}->{$_}->{ordre} == 1) {
-							$unite 		= $_;
+							$unite 			= $_;
 							$unitsigle 	= $dinfo->{$sciper}->{accreds}->{$_}->{sigle};
 						}
 				} keys %{$dinfo->{$sciper}->{accreds}};
@@ -3354,7 +3347,6 @@ sub done_obj {
    $errors .= qq{nombre d'objets du pool non-numérique<br>} if $CONTENTS{pool} and $CONTENTS{pool} =~ /\D/;
    $errors .= qq{nb max d'objetsen réservation plus grand que le pool<br>} if $CONTENTS{max_pool} > $CONTENTS{pool};
 	 if ($CONTENTS{disp} eq 'r' || $CONTENTS{disp} eq 'i') {
-warn "--> done_obj: $CONTENTS{date1}, $CONTENTS{date2}\n";
 	 	   $errors .= qq{dates d'indisponibilité pas précisées} unless $CONTENTS{date1} && $CONTENTS{date2};
 	 }
    erreur ($errors);
@@ -3742,12 +3734,12 @@ sub ges_user {
 	erreur ("personne pas trouvée : $scipertodo")	unless $users[0];
 	
 	foreach my $objID (split (/ /, $CONTENTS{objects})) {
-	 if ($CONTENTS{droit_$objID}) {
+	 if ($CONTENTS{'droit_'.$objID}) {
 		 majUser ({
 			sciper => $scipertodo, 
-			droit  => $CONTENTS{droit_$objID}, 
+			droit  => $CONTENTS{'droit_'.$objID}, 
 			obj_id => $objID,
-			mail   => $CONTENTS{mail_$objID},
+			mail   => $CONTENTS{'mail_'.$objID},
 		});
 	 } else {
 		 delUser ($scipertodo, $objID);
@@ -3824,7 +3816,7 @@ sub search {
 	if ($CONTENTS{op} eq 'usr') {
 		erreur ("saisir le nom de la personne", 1) unless $CONTENTS{nom_usr};
 		my @users = searchUser ($CONTENTS{nom_usr});
-		erreur ("nom pas trouvé")	unless scalar @users;
+		erreur ("user pas trouvé")	unless scalar @users;
 		if ($#users == 0) {
 			my $scipertodo  = pop @users;
 
@@ -4245,8 +4237,7 @@ sub cons_obj {
 		if ($CONTENTS{add}) {
 			# search by name
 			my @users = searchUser ($CONTENTS{sciperTodo});
-
-			erreur ("nom pas trouvé") unless scalar @users;
+			erreur ("user pas trouvé") unless scalar @users;
 			
 			if ($#users == 0) {
 				$CONTENTS{sciperTodo} = pop @users;
@@ -4257,7 +4248,7 @@ sub cons_obj {
 					<br>Ajouter un utilisateur, sélection :<ul>
 				};
 				foreach my $sciper (sort {lc($dinfo->{$a}->{nom}.$dinfo->{$a}->{prenom}) cmp lc($dinfo->{$b}->{nom}.$dinfo->{$a}->{prenom})} @users) {
-					print qq{<li><a href="$URLres/cons_obj?objID=$objID&op=adduser&sciperTodo=$sciper&admin=$CONTENTS{admin}&mail=$CONTENTS{mail}&add=1&admin=$CONTENTS{admin}&mail=$CONTENTS{mail}">$dinfo->{$sciper}->{nom}&nbsp;$dinfo->{$sciper}->{prenom} [ $sciper ]</a>};
+					print qq{<li><a href="$URLres/cons_obj?objID=$objID&op=adduser&sciperTodo=$sciper&droit=$CONTENTS{droit}&mail=$CONTENTS{mail}&add=1">$dinfo->{$sciper}->{nom}&nbsp;$dinfo->{$sciper}->{prenom} [ $sciper ]</a>};
 				}
 				print qq{</ul>};
 				&footpage();
@@ -4678,13 +4669,14 @@ sub searchUser {
 
   my $sql = qq{select distinct
 		dinfo.sciper.sciper, dinfo.sciper.nom_acc, dinfo.sciper.prenom_acc, dinfo.sciper.nom_usuel, dinfo.sciper.prenom_usuel
-		from dinfo.sciper left outer join dinfo.accred on dinfo.sciper.sciper=dinfo.accred.sciper 
+		from dinfo.sciper left outer join dinfo.accounts on dinfo.sciper.sciper=dinfo.accounts.sciper 
+		where user is not null and
   };
   if ($cle =~ /^[1-9]\d{5}$/) {
-  	$sql .= qq{ where dinfo.sciper.sciper=$cle};
+  	$sql .= qq{ dinfo.sciper.sciper=$cle};
   } else {
   	$cle =~ s/'/''/g;
-  	$sql .= qq{ where dinfo.sciper.nom_acc like '$cle%'};
+  	$sql .= qq{ dinfo.sciper.nom_acc like '$cle%'};
   }
 
   my $sth = $db_dinfo->query($sql);
@@ -4969,17 +4961,14 @@ sub load_dinfo {
 		my $nom    = $nom_usuel    ? $nom_usuel    : $nom_acc ;
 		my $prenom = $prenom_usuel ? $prenom_usuel : $prenom_acc ;
 
-		$allUnitsUsers->{$id_unite}->{$sciper} = 1;
+		$allUnitsUsers->{$id_unite}->{$sciper}   = 1;
 		$allUnitsUsersBySigle{$sigle}->{$sciper} = 1;
 		$dinfo->{$sciper}	= {
 			nom			=> $nom,
 			prenom 	=> $prenom,
 			email 	=> $addrlog,
-		};
-
-		if (defined $dinfo->{$sciper}) {
-			$dinfo->{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
-		}
+		} unless defined $dinfo->{$sciper};
+		$dinfo->{$sciper}->{accreds}->{$id_unite} = { sigle => $sigle, ordre => $ordre, };
   }
 
 }
@@ -5277,7 +5266,7 @@ sub majCallBack {
 sub callBack {
 	return unless $USE_CALLBACK;
 
-my $verbose = 1;	
+my $verbose = 0;	
 	my $params = shift;
 warn ">> callBack params ".Dumper($params) if $verbose;
 	return { result => 'false', message => qq{paramètre callback action absent}} unless $params->{action};
