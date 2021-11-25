@@ -1,0 +1,243 @@
+#!/usr/bin/perl
+#
+use strict;
+use utf8;
+use DBI;
+
+use lib qw(/opt/dinfo/lib/perl);
+
+use Cadi::WSUtils;
+
+require 'res-tools.pl';
+
+use vars qw($crt_date $dbh $objTokens $db_dinfo %CONTENTS);
+
+my $verbose = -f '/opt/dinfo/etc/MASTER' ? 0 : 1;
+
+binmode (STDOUT, ':utf8');
+
+get_time ();
+
+$dbh = new Cadi::CadiDB (
+	  dbname => 'reservations',
+	  utf8 => 1,
+ ) unless $dbh;
+ erreur ("FATAL DB ACCESS") unless $dbh;
+
+$db_dinfo = new Cadi::CadiDB (
+  dbname => 'dinfo',
+   trace => 1,
+	  utf8 => 1,
+) unless $db_dinfo;
+
+my $req  = Cadi::WSUtils::loadreq ();
+my $args = $req->{args};
+
+main ();
+
+exit;
+
+sub main {
+  unless ($req) {
+    print qq{Status: 200 OK\n\n};
+    return; 
+  }
+  execute ();
+
+}
+
+sub execute {
+  my $command = $req->{command};
+
+  checkCaller ();
+  $CONTENTS{sciper} = 'rwsres';
+
+  if ($command =~ /^getRes$/) {		#	- info reservation
+	#	args (* = mandatory)
+	#
+	#	resID=xxxxxxx
+	
+		Cadi::WSUtils::error ($req, "no res ID") 	unless $args->{resID};
+		my %res = getRes ($args->{resID});
+		Cadi::WSUtils::error ($req, "unknown res") 	unless $res{res_id};
+		Cadi::WSUtils::error ($req, "resID unknown for objID") 	unless $res{obj_id} eq $args->{objID};
+
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'getRes');
+
+		Cadi::WSUtils::json_response ( { result => \%res, } );
+		exit;
+		
+  }
+
+  if ($command =~ /^listRes$/) {	#	- les reservations du jour
+		my $datedeb = $args->{datedeb} ? $args->{datedeb} : $crt_date;
+		my $datefin = $args->{datefin}   ? $args->{datefin} : $crt_date;
+		my @res 	  = getObjRes ($args->{objID}, $datedeb, $datefin);
+
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'listRes');
+
+		Cadi::WSUtils::json_response ( { result => \@res, } );
+		exit;
+  }
+
+  if ($command =~ /^addRes$/) {		#	- ajouter une reservatiuon ponctuelle (à continuer...)
+	#	args (* = mandatory)
+	#
+	#	* datedeb=yyyymmdd
+	#	datefin=yyyymmdd
+	#	* hdeb=..h..
+	#	* hfin=..h..
+	#	* name=short description
+	#	* descr=longer description
+	#	* sciper=owner of reservation
+	#	periodic= ponctuelle* | qutidienne | chaque | toutes les deux semaines | toutes les trois semaines
+	#	jour= lundi | mardi | mercredi | jeudi | vendredi
+
+		Cadi::WSUtils::error ($req, "no RW rights") 	unless $objTokens->{$args->{token}}->{rights} eq 'RW';
+		Cadi::WSUtils::error ($req, "no date and time") unless $args->{datedeb} and $args->{hdeb} and $args->{hfin};
+
+		Cadi::WSUtils::error ($req, "wrong date, format yyyymmdd : $args->{datedeb}") unless checkDate($args->{datedeb}) ;
+		$args->{datefin} = $args->{datedeb} unless $args->{datefin};
+		Cadi::WSUtils::error ($req, "wrong date, format yyyymmdd : $args->{datefin}")   unless checkDate($args->{datefin}) ;
+
+		Cadi::WSUtils::error ($req, "wrong time, format ..h.. : $args->{hdeb}, $args->{hfin}") unless $args->{hdeb} =~ /^\d{2}h\d{2}$/ and $args->{hfin} =~ /^\d{2}h\d{2}$/;
+		Cadi::WSUtils::error ($req, "reservation duration error") unless $args->{hdeb} lt $args->{hfin};
+
+		Cadi::WSUtils::error ($req, "no name and description") unless $args->{name} and $args->{descr};
+		Cadi::WSUtils::error ($req, "no sciper") 		unless $args->{sciper};
+		
+		my @dates = ($args->{datedeb});
+		if ($args->{periodic} and $args->{periodic} ne 'ponctuelle') {
+			@dates = &get_dates_from_name($args->{periodic}, $args->{jour}, $args->{datedeb}, $args->{datefin});
+
+		} else {
+			$args->{periodic} = 'ponctuelle';
+		}
+		
+		foreach my $res (getObjRes ($args->{objID}, $args->{datedeb}, $args->{datefin})) {
+			Cadi::WSUtils::error ($req, "reservation conflict") if 
+				($args->{hfin} gt $res->{hdeb} and $args->{hfin} le $res->{hfin}) or
+				($args->{hdeb} ge $res->{hdeb} and $args->{hdeb} lt $res->{hfin}) or
+				($args->{hdeb} ge $res->{hdeb} and $args->{hfin} lt $res->{hfin}) or
+				($args->{hdeb} lt $res->{hdeb} and $args->{hfin} gt $res->{hfin}) ;
+		}
+		
+		my $sql = qq{insert into res set nom=?, descr=?, datedeb=?, datefin=?, obj_id=?, sciper=?, hdeb=?, hfin=?, periodic='ponctuelle', maj=now(), maj_by='rwsres'};
+		my $sth 	= $dbh->prepare( $sql) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error prepare\n$DBI::errstr\n$sql\n", }, } );
+		$sth->execute (($args->{name}, $args->{descr}, $args->{datedeb}, $args->{datefin}, $args->{objID}, $args->{sciper}, $args->{hdeb}, $args->{hfin})) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error : execute : $DBI::errstr", }, } );
+		$sql = qq{select LAST_INSERT_ID() from res};
+		my $sth = $dbh->prepare( $sql) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error prepare\n$DBI::errstr\n$sql\n", }, } );
+		$sth->execute () or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error : execute : $DBI::errstr", }, } );
+		my ($res_id) = $sth->fetchrow_array;
+		foreach my $date (@dates) {
+			$sql = qq{insert into dates set	res_id=?, date=?};
+			$sth = $dbh->prepare( $sql) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error prepare\n$DBI::errstr\n$sql\n", }, } );
+			$sth->execute (($res_id, $date)) or Cadi::WSUtils::json_response ( { result => { status => "database fatal error : $args->{objID}, $res_id : $DBI::errstr", }, } );
+		}
+		
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'addRes');
+
+		logger ( $args->{objID}, $res_id, qq{add res : $args->{name} [ $args->{datedeb}, $args->{datefin}, $args->{periodic}, $args->{jour}, $args->{hdeb}-$args->{hfin} ]});
+		Cadi::WSUtils::json_response ( { result => { status => 'OK', resID => $res_id, }, } );
+		exit;
+		
+  }
+
+  if ($command =~ /^delRes$/) {		#	- effacer une resrevation
+	#	args (* = mandatory)
+	#
+	#	* resID=xxxxxxx
+
+		Cadi::WSUtils::error ($req, "no res ID") 	unless $args->{resID};
+		my %res = getRes ($args->{resID});
+		Cadi::WSUtils::error ($req, "unknown res") 	unless $res{res_id};
+		Cadi::WSUtils::error ($req, "resID unknown for objID") 	unless $res{obj_id} eq $args->{objID};
+		Cadi::WSUtils::error ($req, "no RW rights") unless $objTokens->{$args->{token}}->{rights} eq 'RW';
+
+		my $sql = qq{delete from dates where res_id=?};
+		my $sth = $dbh->prepare( $sql)   or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error prepare\n$DBI::errstr\n$sql\n", }, } );
+		$sth->execute (($args->{resID})) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error : execute : $DBI::errstr", }, } );
+
+		my $sql = qq{delete from res where id=?};
+		my $sth = $dbh->prepare( $sql)   or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error prepare\n$DBI::errstr\n$sql\n", }, } );
+		$sth->execute (($args->{resID})) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error : execute : $DBI::errstr", }, } );
+
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'delRes');
+
+		logger ($res{obj_id}, $args->{resID}, qq{del res : $res{nom} [ $res{datedeb}, $res{datefin}, $res{periodic}, $res{jour}, $res{hdeb}-$res{hfin} ]});
+		Cadi::WSUtils::json_response ( { result => { status => 'OK', }, } );
+		exit;
+		
+  }
+
+  if ($command =~ /^getObj$/) {		#	- infos ressource
+
+		my %obj = getObj ($args->{objID});
+		#	- update token last_use
+		updtToken_lastUse($args->{token}, 'getObj');
+
+		Cadi::WSUtils::json_response ( { result => \%obj, } );
+		exit;
+		
+  }
+  
+  #	- show help
+  Cadi::WSUtils::json_response ( { help => {
+  
+  
+  }, } );
+	
+  exit;
+
+}
+
+sub updtToken_lastUse {
+	my $token_id = shift;
+	my $op 			 = shift;
+	return unless $token_id && $op;
+	
+	my $sql = qq{update tokens set last_op=?, last_use=now() where id=?};
+	my $sth = $dbh->prepare( $sql) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error prepare\n$DBI::errstr\n$sql\n", }, } );
+	$sth->execute ($op, $token_id) or Cadi::WSUtils::json_response ( { result => { status => "KO, database fatal error : execute : $DBI::errstr", }, } );
+
+}
+
+sub checkCaller {
+ my ($req) = @_;
+ 
+  Cadi::WSUtils::error ($req, "no ressource")  	  unless $args->{objID};
+  Cadi::WSUtils::error ($req, "no authorization") unless $args->{token};
+  $objTokens = get_obj_tokens ($args->{objID});
+  Cadi::WSUtils::error ($req, "no such authorization for this ressource")  unless $objTokens->{$args->{token}};
+  my ($obj_id, $ts) = getObjIDFromToken ($args->{token});
+warn "--> ($obj_id, $ts)\n" if $verbose;
+  Cadi::WSUtils::error ($req, "wrong authorization for this ressource")  unless $obj_id eq $args->{objID};
+
+}
+
+sub checkDate {
+	my ($date) = @_;
+	
+	my @mdays = (0,31,28,31,30,31,30,31,31,30,31,30,31);
+	my ($year, $month, $day) = $date =~ m/^(\d{4})(\d{2})(\d{2})$/;
+	my $nyear = (localtime())[5] + 1900;
+warn "--> checkDate : $year, $month, $day : $nyear\n" if $verbose;
+
+	##### Year range is 10 years on either side of current year
+	##### Also exits if m// returned nothing
+	return if $year < $nyear - 10 || $year > $nyear + 10;
+	return if $month < 1 || $month > 12;
+	##### Leap year conditions
+	if ($month == 2) {
+		if ($year % 4 != 0) { $mdays[2] = 28; }
+		elsif ($year % 400 == 0) { $mdays[2] = 29; }
+		elsif ($year % 100 == 0) { $mdays[2] = 28; }
+		else { $mdays[2] = 29; }
+	}
+	return if $day < 1 || $day > $mdays[$month];
+	return 1;
+}
