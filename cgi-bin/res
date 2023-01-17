@@ -25,7 +25,7 @@ use Cadi::Groups;
 use Cadi::Persons;
 use Tequila::Client;
 
-#binmode (STDOUT, ':utf8');
+binmode (STDOUT, ':utf8');
 
 $ENV {SERVER_NAME} = $ENV {SITE_URL} if ($ENV {SERVER_NAME} eq '127.0.0.1' && $ENV {SITE_URL});
 require 'res-tools.pl';
@@ -85,14 +85,15 @@ my $NOTIFYUSER 	= 0;
 my $USE_CALLBACK= 1;
 
 #	---------
-$login_as 			= '129136';
+$login_as 			= '168466';
+#$login_as 			= '263231';
 #	---------
 	
 %CONTENTS  			= &loadargs ();
 
 use vars qw( $allObjects $allUnitsUsers @allunits $userObjects $res $dinfo $dbh @salles $image_dir $logfile $gwidth $ghight $Admins @commonUsers @commonUnits);
 
- my $superusers = '104782,107490';	#	- ic, nr, cl
+ my $superusers = '243371,169419';	#	- dqx, nbo
 
  &get_time ();
 
@@ -1771,7 +1772,7 @@ sub listRes {
 		<td style="text-align:center;" width=100 class="header_cell"><b>date</b>
 		<td style="text-align:center;" align=center width=50 class="header_cell"><a href="${url}sortbyhour=1"><img src="/images/arrow-up.png" height=12></a> <b>de</b>
 		<td style="text-align:center;" align=center width=50 class="header_cell"><b>à</b>
-		<td align=center width=120 class="header_cell"><a href="$url"><img src="/images/arrow-up.png" height=12></a> <b>salle/objet</b>
+		<td align=center width=120 class="header_cell"><a href="${url}sortbyobj=1"><img src="/images/arrow-up.png" height=12></a> <b>salle/objet</b>
 		<td align=center width=50 class="header_cell"><b>Nb. objets</b>
 		<td align=center width=180 class="header_cell"><b>raison</b>
 	  };
@@ -1781,6 +1782,7 @@ sub listRes {
   
   my ($tmp_date, $predate, $crt_salle);
   my $done;
+  @crt_res = sort { $userObjects->{$a->{obj_id}}->{objdata}->{nom} cmp $userObjects->{$b->{obj_id}}->{objdata}->{nom} } @crt_res if  $CONTENTS{sortbyobj};
 	foreach my $res ( @crt_res) {
 		my $res_id = $res->{res_id};
 		my $date   = $res->{date};
@@ -3459,7 +3461,7 @@ sub popup {
 		};
 		foreach my $item (sort split(/,/, $CONTENTS{items})) {
 			next unless $item;
-			print qq{<a href=$thescript/popup?del=1&del_item=$item&items=$CONTENTS{items}><img src=/images/ko.gif border="0"> $item</a><br>}
+			print qq{<a href=$thescript/popup?type=$CONTENTS{type}&del=1&del_item=$item&items=$CONTENTS{items}><img src=/images/ko.gif border="0"> $item</a><br>}
 		}
 	}
 	print qq{
@@ -3468,12 +3470,12 @@ sub popup {
 	</ul>
 	<p>
 			<a href="#" onclick=" 
-				if ( document.getElementById('type').value == 'unites') {
+				if ( document.getElementById('type').value === 'unites') {
 					opener.document.form1.unites.value  = '$CONTENTS{items}';
-				} else {
+				} else  {
 					opener.document.form1.groupes.value  = '$CONTENTS{items}';
 				}
-				;window.close();
+				window.close();
 				">Accepter</a> 
 	</p>
 	};
