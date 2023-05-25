@@ -4,7 +4,7 @@
 $ABS_HOME		= 'https://absences.epfl.ch';
 $RES_HOME		= 'https://reservations.epfl.ch';
 
-$abs_path   = '/var/www/vhosts/reservations.epfl.ch/';
+$abs_path   = '/var/www/vhosts/app/';
 $URLabs			= "${ABS_HOME}/cgi-bin/abs";
 $URLres			= "${RES_HOME}/cgi-bin/res";
 #==============================================================
@@ -24,7 +24,7 @@ $querystring	= $ENV{'QUERY_STRING'};
 $pathinfo    	= $ENV{'PATH_INFO'};
 
 #	- get access params
-require '/var/www/vhosts/reservations.epfl.ch/private/etc/access_params';	
+require '/var/www/vhosts/app/private/etc/access_params';
 
 #	ws token encryption
 $useTokenRC4 	= 0;

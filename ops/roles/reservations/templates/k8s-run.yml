@@ -49,7 +49,7 @@ spec:
               mountPath: /opt/dinfo/etc
             - name: reservations-secrets
               subPath: access_params
-              mountPath: /var/www/vhosts/reservations.epfl.ch/private/etc/access_params
+              mountPath: /var/www/vhosts/app/private/etc/access_params
       volumes:
             - name: reservations-secrets
               secret:
