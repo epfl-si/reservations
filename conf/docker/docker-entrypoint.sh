@@ -6,6 +6,5 @@ export TEQUILA_FINGERPRINT=`openssl s_client -connect $TEQUILA_HOST:443 < /dev/n
 
 # Dispatch config files from configmap folder
 [ -f "/opt/dinfo/etc/tnsnames.ora" ] && cp "/opt/dinfo/etc/tnsnames.ora" /etc/tnsnames.ora
-[ -f "/opt/dinfo/etc/access_params" ] && cp "/opt/dinfo/etc/access_params" /var/www/vhosts/reservations.epfl.ch/private/etc/access_params
 
 apachectl -e debug -D FOREGROUND
