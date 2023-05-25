@@ -35,11 +35,19 @@ inventories () {
     echo "-i inventory.yml"
 }
 
+ensure_docker_login_with_oc_credentials () {
+    ensure_oc_login
+    GASPAR="$(oc whoami)"
+    echo >&2 "Logging in to os-docker-registry.epfl.ch using the OpenShift token..."
+    docker login os-docker-registry.epfl.ch -u $GASPAR -p "$(oc whoami -t)"
+}
+
 ###########################################################################
 
 set -e
 
 ensure_ansible
+ensure_docker_login_with_oc_credentials
 
 mode=ansible-playbook
 declare -a ansible_args
