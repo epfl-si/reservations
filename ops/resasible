@@ -36,6 +36,7 @@ inventories () {
 }
 
 ensure_docker_login_with_oc_credentials () {
+    [ -n "$schnell" ] && return 0
     ensure_oc_login
     GASPAR="$(oc whoami)"
     echo >&2 "Logging in to os-docker-registry.epfl.ch using the OpenShift token..."
@@ -47,7 +48,6 @@ ensure_docker_login_with_oc_credentials () {
 set -e
 
 ensure_ansible
-ensure_docker_login_with_oc_credentials
 
 mode=ansible-playbook
 declare -a ansible_args
@@ -58,11 +58,16 @@ while [ "$#" -gt 0 ]; do
         -m) mode=ansible
             ansible_args+=("-m")
             shift ;;
+        --schnell)
+            schnell=1
+            shift ;;
         *)
             ansible_args+=("$1")
             shift ;;
     esac
 done
+
+ensure_docker_login_with_oc_credentials
 
 case "$mode" in
     ansible-playbook)
