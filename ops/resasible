@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+# This is a wrapper around ansible / ansible-playbook.
+#
+# Usage ("ansible" mode):
+#
+#   ./reservasible -m raw all -a 'date'
+#
+# Usage ("ansible-playbook" mode):
+#
+#   ./reservasible -l prod
+#
+#
+# If you are unfamiliar with Ansible, read up on it at
+# - https://www.ansible.com/overview/how-ansible-works
+# - https://github.com/jdauphant/awesome-ansible
+
+cd "$(dirname "$0")"; cd "$(/bin/pwd)"
+
+ensure_ansible () {
+    if ! test -f ansible-deps-cache/.versions 2>/dev/null; then
+        curl https://raw.githubusercontent.com/epfl-si/ansible.suitcase/master/install.sh | \
+            SUITCASE_DIR=$PWD/ansible-deps-cache \
+            SUITCASE_ANSIBLE_VERSION=7.1.0 \
+            bash -x
+    fi
+
+    . "$PWD"/ansible-deps-cache/lib.sh
+    ensure_ansible_runtime
+}
+
+inventories () {
+    echo "-i inventory.yml"
+}
+
+###########################################################################
+
+set -e
+
+ensure_ansible
+
+mode=ansible-playbook
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+        -m) mode=ansible
+            ansible_args+=("-m")
+            shift ;;
+        *)
+            ansible_args+=("$1")
+            shift ;;
+    esac
+done
+
+case "$mode" in
+    ansible-playbook)
+        ansible-playbook $playbook_flags $(inventories) "${ansible_args[@]}" \
+                         playbook.yml
+        ;;
+    ansible)
+        ansible $(inventories) "${ansible_args[@]}"
+        ;;
+esac

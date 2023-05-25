@@ -1,0 +1,4 @@
+- name: Deploy to OpenShift
+  hosts: all
+  roles:
+    - name: roles/reservations
