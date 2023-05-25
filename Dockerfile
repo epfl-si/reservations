@@ -34,6 +34,7 @@ COPY conf/docker/Tequila/Config.pm /opt/dinfo/lib/perl/Tequila/
 
 COPY htdocs/ /var/www/vhosts/app/htdocs/
 COPY cgi-bin/ /var/www/vhosts/app/cgi-bin/
+COPY perllib/ /usr/local/lib/site_perl/
 
 # The MSMTP EPFL configuration
 COPY ./conf/docker/msmtprc.conf /etc/msmtprc
