@@ -72,13 +72,8 @@ $nom_salle_len	= 19;
 @obj_acces			= ('public','restreint','indisponible');
 
 #-------------------
-$DEBUG = -f '/opt/dinfo/etc/MASTER' ? 0 : 1;
-
-if ($DEBUG) {
-	$ABS_HOME = 'https://test-absences.epfl.ch';
-	$RES_HOME = 'https://test-reservations.epfl.ch';
-	$URLres	  = "${RES_HOME}/cgi-bin/res";
-}
+$RES_HOME = 'https://' . $ENV{SITE_URL};
+$URLres	  = "${RES_HOME}/cgi-bin/res";
 
 my $NOTIFYUSER 	= 0;
 my $USE_CALLBACK= 1;
@@ -1444,7 +1439,7 @@ sub footpage {
 	} if scalar keys %$userObjects;
 
 	print qq{ <a href=$thescript/listcontacts>contact</a><br>};
-	print qq{<p><a href=$ABS_HOME>absences</a> </p>} if scalar keys %$userObjects;
+	print qq{<p><a href="https://absences.epfl.ch/">absences</a> </p>} if scalar keys %$userObjects;
 	
 	print qq{ 
 		</ul>
@@ -4735,8 +4730,8 @@ sub sendMail {
   my %mail;
   $mail{From} 	 = $generic_mail; 
 
-warn "sendMail [DEBUG=$DEBUG] :: To : $dest\n";
-	$dest = 'ion.cionca@epfl.ch' if $DEBUG;
+warn "sendMail :: To : $dest\n";
+  $dest = $ENV{MOCK_EMAIL_TO} if $ENV{MOCK_EMAIL_TO};
 
   $mail{To}   	 = $dest;
   $mail{Smtp} 	 = 'mail.epfl.ch';
@@ -4875,8 +4870,8 @@ sub header {
 
    print qq{
     <p></p>
-    <div class="redbox">*** ATTENTION : vous êtes sur une version de TEST ***</div>
-   } if $DEBUG;
+    <div class="redbox">$ENV{TOP_PAGE_BANNER}</div>
+   } if $ENV{TOP_PAGE_BANNER};
    
    print qq{
    	<p></p>

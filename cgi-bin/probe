@@ -18,8 +18,7 @@ use Cadi::CadiDB;
 use Cadi::WSUtils;
 
 my $pi 			= $ENV {PATH_INFO};
-my $DEBUG		= -f '/opt/dinfo/etc/MASTER' ? 0 : 1;
-my $verbose = $DEBUG;
+my $verbose = 1;
 
 my $config_items = {
 		accreddb  => { active => '1', critical => 'true',  label => 'mysql accred/dinfo db access',},
@@ -48,7 +47,7 @@ if ( $pi =~ /usage/ ) {
 }	
 
 	my $metrics;
-	my $line = $DEBUG ? 'test' : 'prod';
+	my $line = $ENV{E2EM_LINE} || 'test';
 
 foreach my $key ( keys %$config_items ) {
 	my $item = $config_items->{$key};

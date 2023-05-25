@@ -8,8 +8,13 @@ metadata:
 data:
   E2EM_LINE: {{ "prod" if inventory_environment == "prod" else "preprod" }}
   MOCK_ORACLE: '{{ "1" if inventory_environment != "prod" else "0" }}'
-  SITE_URL: reservations-preprod.epfl.ch
+  SITE_URL: {{ reservations_hostname }}
+{% if inventory_environment != "prod" %}
+  MOCK_EMAIL_TO: isas-fsd@groupes.epfl.ch
   TEQUILA_HOST: test-tequila.epfl.ch
+  TOP_PAGE_BANNER: >-
+    *** ATTENTION : vous êtes sur une version de TEST ***
+{% endif %}
 
 {# Note: since secrets use “temporary” Ansible variables, they are managed
    separately. See ../tasks/reservations-openshift-run-tasks.yml #}
