@@ -34,9 +34,7 @@ spec:
     spec:
       containers:
         - name: reservations
-          # TODO: build in the cloud.
-          image: >-
-            docker-registry.default.svc:5000/{{ openshift_namespace }}/reservations:latest
+          # `image` is managed by the `ImageChange` trigger, below.
           envFrom:
             - configMapRef:
                 name: reservations-config
