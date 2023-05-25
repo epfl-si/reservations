@@ -40,6 +40,7 @@ COPY ./conf/docker/msmtprc.conf /etc/msmtprc
 RUN ln -s /usr/bin/msmtp /usr/sbin/sendmail
 
 COPY conf/docker/docker-entrypoint.sh /
+RUN  chmod +x /docker-entrypoint.sh
 
 USER 1001
 
