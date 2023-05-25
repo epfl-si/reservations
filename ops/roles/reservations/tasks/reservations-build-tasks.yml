@@ -16,3 +16,12 @@
     name: "{{ reservations_image_name }}"
     source: local
     push: true
+
+- name: "Promote test image to production"
+  shell:
+    cmd: |
+      oc tag reservations-test/reservations:test \
+             reservations-prod/reservations:prod
+  tags:
+    - never
+    - reservations.promote

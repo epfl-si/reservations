@@ -9,6 +9,7 @@
         - reservations.build
   tags:
   - reservations.build
+  - reservations.promote
 
 - include_tasks:
     file: reservations-openshift-run-tasks.yml
