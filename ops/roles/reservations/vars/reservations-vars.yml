@@ -9,3 +9,7 @@ _keybase_secrets_preprod: >-
 
 reservations_image_name: >-
     os-docker-registry.epfl.ch/{{ openshift_namespace }}/reservations:{{ inventory_environment }}
+
+reservations_hostname: >-
+    {{ "reservations-preprod.epfl.ch" if inventory_environment == "test"
+       else "reservations.epfl.ch" }}

@@ -82,3 +82,22 @@ spec:
       targetPort: 8080
   selector:
     app: reservations
+
+---
+
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: reservations
+  namespace: {{ openshift_namespace }}
+spec:
+  host: {{ reservations_hostname }}
+  port:
+    targetPort: web
+  tls:
+    termination: edge
+  to:
+    kind: Service
+    name: reservations
+    weight: 100
+  wildcardPolicy: None
