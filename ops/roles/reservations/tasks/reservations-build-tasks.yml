@@ -1,10 +1,18 @@
-- name: "{{ reservations_image_name }} Docker image (local build + push)"
-  when: >-
-    inventory_environment == "test"
+- name: "{{ reservations_image_name }} Docker image: local build"
   docker_image:
     name: "{{ reservations_image_name }}"
     source: build
-    push: true
     force_source: true
     build:
       path: '{{ resasible_dir }}/..'
+  register: reservations_image
+
+- name: "{{ reservations_image_name }} Docker image: push to OpenShift"
+  # We shouldn't need this, as idempotent pushes should be de-duped by their SHA256...
+  # But that doesn't quite work as of now, so we do.
+  when: >-
+    (reservations_image | default({})) is changed
+  docker_image:
+    name: "{{ reservations_image_name }}"
+    source: local
+    push: true
