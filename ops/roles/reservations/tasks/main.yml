@@ -1,0 +1,10 @@
+- tags: always
+  include_vars: reservations-vars.yml
+
+- include_tasks:
+    file: reservations-openshift-run-tasks.yml
+    apply:
+      tags:
+        - reservations.run
+  tags:
+  - reservations.run

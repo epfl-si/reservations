@@ -1,0 +1,83 @@
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reservations-config
+  namespace: {{ openshift_namespace }}
+data:
+  E2EM_LINE: {{ "prod" if inventory_environment == "prod" else "preprod" }}
+  MOCK_ORACLE: '{{ "1" if inventory_environment != "prod" else "0" }}'
+  SITE_URL: reservations-preprod.epfl.ch
+  TEQUILA_HOST: test-tequila.epfl.ch
+
+{# Note: since secrets use “temporary” Ansible variables, they are managed
+   separately. See ../tasks/reservations-openshift-run-tasks.yml #}
+
+---
+
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
+metadata:
+  labels:
+    app: reservations
+  name: reservations
+  namespace: {{ openshift_namespace }}
+spec:
+  replicas: 1
+  selector:
+    app: reservations
+  template:
+    metadata:
+      labels:
+        app: reservations
+    spec:
+      containers:
+        - name: reservations
+          # TODO: build in the cloud.
+          image: >-
+            docker-registry.default.svc:5000/{{ openshift_namespace }}/reservations:latest
+          envFrom:
+            - configMapRef:
+                name: reservations-config
+          imagePullPolicy: Always
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - name: reservations-secrets
+              mountPath: /opt/dinfo/etc
+      volumes:
+            - name: reservations-secrets
+              secret:
+                secretName: reservations-secrets
+  triggers:
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+          - reservations
+        from:
+          kind: ImageStreamTag
+          name: 'reservations:prod'
+          namespace: {{ openshift_namespace }}
+    - type: ConfigChange
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: reservations
+  name: reservations
+  namespace: {{ openshift_namespace }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: web
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: reservations

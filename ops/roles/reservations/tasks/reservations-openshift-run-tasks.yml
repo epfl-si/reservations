@@ -1,0 +1,35 @@
+- name: "Kubernetes objects for running reservations"
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'k8s-run.yml') | from_yaml_all }}"
+
+- name: "Kubernetes secrets"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: reservations-secrets
+        namespace: "{{ openshift_namespace }}"
+      type: Opaque
+      data:
+              access_params: >-
+                {{ _access_params | b64encode }}
+              dbs.conf: >-
+                {{ _dbs_conf      | b64encode }}
+              secrets.conf: >-
+                {{ _secrets_conf  | b64encode }}
+  vars:
+    _access_params: |
+       $superuser = 'cionca';
+       $rc4key = '{{ keybase_secrets.rc4_key }}';
+       $aeskey = '{{ keybase_secrets.aes_key }}';
+    _dbs_conf: |
+      {% for k, el in keybase_secrets.cadi_dbs.items() %}
+      {{ k }}	{{ el.db_name }}	{{ el.db_host }}	{{ el.db_user }}	{{ el.db_pass }}
+      {% endfor %}
+    _secrets_conf: |
+      {% for k, v in keybase_secrets.reservations_secrets_conf.items() %}
+      {{ k }}	{{ v }}
+      {% endfor %}
