@@ -1,0 +1,5 @@
+all:
+  hosts:
+    reservations-prod:
+      openshift_namespace: reservations-prod
+      inventory_environment: prod

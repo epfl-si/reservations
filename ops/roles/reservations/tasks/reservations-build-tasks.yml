@@ -1,4 +1,5 @@
 - name: "{{ reservations_image_name }} Docker image: local build"
+  when: inventory_environment == "test"
   docker_image:
     name: "{{ reservations_image_name }}"
     source: build
@@ -7,17 +8,19 @@
       path: '{{ resasible_dir }}/..'
   register: reservations_image
 
-- name: "{{ reservations_image_name }} Docker image: push to OpenShift"
-  # We shouldn't need this, as idempotent pushes should be de-duped by their SHA256...
-  # But that doesn't quite work as of now, so we do.
-  when: >-
-    (reservations_image | default({})) is changed
+- when:
+    - inventory_environment == "test"
+    # We shouldn't need this, as idempotent pushes should be de-duped by their SHA256...
+    # But that doesn't quite work as of now, so we do.
+    - (reservations_image | default({})) is changed
+  name: "{{ reservations_image_name }} Docker image: push to OpenShift"
   docker_image:
     name: "{{ reservations_image_name }}"
     source: local
     push: true
 
 - name: "Promote test image to production"
+  when: inventory_environment == "prod"
   shell:
     cmd: |
       oc tag reservations-test/reservations:test \

@@ -1,8 +1,7 @@
 - tags: always
   include_vars: reservations-vars.yml
 
-- when: inventory_environment == "test"
-  include_tasks:
+- include_tasks:
     file: reservations-build-tasks.yml
     apply:
       tags:

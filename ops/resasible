@@ -31,8 +31,14 @@ ensure_ansible () {
     ensure_ansible_runtime
 }
 
+inventory_mode="test"
 inventories () {
-    echo "-i inventory.yml"
+    case "$inventory_mode" in
+        *test*)    echo "-i inventory/test.yml" ;;
+    esac
+    case "$inventory_mode" in
+        *prod*)    echo "-i inventory/prod.yml" ;;
+    esac
 }
 
 ensure_docker_login_with_oc_credentials () {
@@ -57,6 +63,9 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
         -m) mode=ansible
             ansible_args+=("-m")
+            shift ;;
+        --prod)
+            inventory_mode="$inventory_mode prod"
             shift ;;
         --schnell)
             schnell=1

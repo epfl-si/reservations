@@ -3,9 +3,6 @@ all:
       ansible_connection: local
       ansible_python_interpreter: "{{ resasible_dir }}/ansible-deps-cache/bin/python3"
   hosts:
-    reservations-prod:
-      openshift_namespace: reservations-prod
-      inventory_environment: prod
     reservations-test:
       openshift_namespace: reservations-test
       inventory_environment: test
