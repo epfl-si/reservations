@@ -1,4 +1,4 @@
-FROM ghcr.io/epfl-si/common-web:1.15.2
+FROM ghcr.io/epfl-si/common-web:1.9.0
 LABEL maintainer "isas-fsd@groupes.epfl.ch"
 
 USER 0
