@@ -83,10 +83,6 @@ if ($DEBUG) {
 my $NOTIFYUSER 	= 0;
 my $USE_CALLBACK= 1;
 
-#	---------
-$login_as 			= '168466';
-#$login_as 			= '263231';
-#	---------
 	
 %CONTENTS  			= &loadargs ();
 
@@ -387,10 +383,6 @@ sub auth {
 
   $tequila->authenticate ();
   $CONTENTS{sciper}   = $tequila->{attrs}{uniqueid};
-  
-  if ($CONTENTS{sciper} eq '104782' and $login_as) {
-		$CONTENTS{sciper} = $login_as ;
-  }
 
   @allunits  = getAccreds ($CONTENTS{sciper});
 	@allgroups = $Groupes-> listGroupsUserBelongsTo($CONTENTS{sciper});
