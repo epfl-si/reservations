@@ -40,6 +40,8 @@ set -e
 ensure_ansible
 
 mode=ansible-playbook
+declare -a ansible_args
+ansible_args=(-e "resasible_dir=$OLDPWD")
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
