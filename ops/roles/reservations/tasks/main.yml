@@ -1,6 +1,15 @@
 - tags: always
   include_vars: reservations-vars.yml
 
+- when: inventory_environment == "test"
+  include_tasks:
+    file: reservations-build-tasks.yml
+    apply:
+      tags:
+        - reservations.build
+  tags:
+  - reservations.build
+
 - include_tasks:
     file: reservations-openshift-run-tasks.yml
     apply:

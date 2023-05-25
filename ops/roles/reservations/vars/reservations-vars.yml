@@ -6,3 +6,6 @@ _keybase_secrets_prod: >-
     {{ lookup('file', '/keybase/team/epfl_resrvations/secrets-prod.yml') | from_yaml }}
 _keybase_secrets_preprod: >-
     {{ lookup('file', '/keybase/team/epfl_resrvations/secrets-test.yml') | from_yaml }}
+
+reservations_image_name: >-
+    os-docker-registry.epfl.ch/{{ openshift_namespace }}/reservations:{{ inventory_environment }}

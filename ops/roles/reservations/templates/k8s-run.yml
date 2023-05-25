@@ -59,8 +59,8 @@ spec:
           - reservations
         from:
           kind: ImageStreamTag
-          name: 'reservations:prod'
           namespace: {{ openshift_namespace }}
+          name: 'reservations:{{ inventory_environment }}'
     - type: ConfigChange
 
 ---

@@ -1,0 +1,10 @@
+- name: "{{ reservations_image_name }} Docker image (local build + push)"
+  when: >-
+    inventory_environment == "test"
+  docker_image:
+    name: "{{ reservations_image_name }}"
+    source: build
+    push: true
+    force_source: true
+    build:
+      path: '{{ resasible_dir }}/..'
