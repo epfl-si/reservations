@@ -13,7 +13,7 @@ data:
   MOCK_EMAIL_TO: isas-fsd@groupes.epfl.ch
   TEQUILA_HOST: test-tequila.epfl.ch
   TOP_PAGE_BANNER: >-
-    *** ATTENTION : vous êtes sur une version de TEST ***
+    *** ATTENTION : vous &ecirc;tes sur une version de TEST ***
 {% endif %}
 
 {# Note: since secrets use “temporary” Ansible variables, they are managed
