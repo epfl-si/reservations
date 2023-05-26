@@ -95,6 +95,9 @@ kind: Route
 metadata:
   name: reservations
   namespace: {{ openshift_namespace }}
+  labels:
+    epfl.ch/visibility: >-
+      {{ "public" if inventory_environment == "prod" else "private" }}
 spec:
   host: {{ reservations_hostname }}
   port:
