@@ -53,10 +53,14 @@ spec:
             - name: reservations-secrets
               subPath: access_params
               mountPath: /var/www/vhosts/app/private/etc/access_params
+            - name: reservations-imagemaps
+              mountPath: /var/www/vhosts/app/htdocs/.maps
       volumes:
             - name: reservations-secrets
               secret:
                 secretName: reservations-secrets
+            - name: reservations-imagemaps
+              emptyDir: {}
   triggers:
     - type: ImageChange
       imageChangeParams:
