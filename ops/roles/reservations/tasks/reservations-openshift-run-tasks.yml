@@ -33,3 +33,6 @@
       {% for k, v in keybase_secrets.reservations_secrets_conf.items() %}
       {{ k }}	{{ v }}
       {% endfor %}
+      {# Squelchs a “Secret guests.aeskey not found in Secrets config file” warning
+         when loading Cadi::WSUtils #}
+      guests.aeskey	nada
