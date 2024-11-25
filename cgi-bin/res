@@ -3617,6 +3617,12 @@ sub maj_obj {
 		 $title = qq{Ajouter une ressource};
 		 $visip = 'checked';
 		 $disp1	= 'checked';
+
+		print q{<h1>Les ajouts de ressources ne sont plus possibles</h1>
+			<p>En cas de questions, merci de contacter le <a href="mailto:1234@epfl.ch?subject='SI_RESERVATION: ajout de ressources'">1234@epfl.ch</a>
+		};
+	&footpage;
+	return;
    }
    $datedeb  =~ s/\-//g;
    $datefin  =~ s/\-//g;
