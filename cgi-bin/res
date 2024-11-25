@@ -83,7 +83,7 @@ my $USE_CALLBACK= 1;
 
 use vars qw( $allObjects $allUnitsUsers @allunits $userObjects $res $dinfo $dbh @salles $image_dir $logfile $gwidth $ghight $Admins @commonUsers @commonUnits);
 
- my $superusers = '243371,169419';	#	- dqx, nbo
+ my $superusers = '243371,169419,168891';	#	- dqx, nbo, lve
 
  &get_time ();
 
