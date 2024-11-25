@@ -3498,7 +3498,7 @@ sub logs {
   my $sth = dbquery($sql, @params);
 
 	while (my $data = $sth->fetchrow_hashref) {
-		$data->{msg} = decode('UTF-8', $data->{msg});
+		$data->{msg} = utf8::decode( $data->{msg} );
 		print qq{
 		<div style="float:left;width:150px;">$data->{ts}</div>
 		<div style="float:left;width:150px;">$dinfo->{$data->{sciper}}->{nom} $dinfo->{$data->{sciper}}->{prenom}</div>
