@@ -1483,9 +1483,14 @@ sub footpage {
 sub main {
 
 # - news
-	my $news = 0;
+	my $news = 1;
 	print qq{<div class="redbox">
-		<p>...</p>
+			<p>
+				<strong>Migration du système :</strong> comme <a href="https://newsletter.epfl.ch/fr/newsletters/1dce446a-cac7-417a-baac-86975f9e9812/render/">annoncé dans cette newsletter</a>,
+				le site reservations.epfl.ch est progressivement démantelé. L'utilisation du système est 
+				toujours possible (mais la création de nouvelle salle bloquée). Les administreur·trice·s de salle seront contacté·e·s progressivement 
+				pour la migration.
+			</p>
 		</div>
 	} if $news;
 		
@@ -1505,11 +1510,11 @@ sub main {
     }
 
 	# - what's new
-	print qq{<h4><img alt="what's new'" src="/images/new_small.gif" style="height:12px; width:31px"> What's new</h4>
-	<li><a href="https://wiki.epfl.ch/resfaq#q1">Notifications aux utilisateurs d'une ressource</a></li>
-	<li><a href="https://wiki.epfl.ch/resfaq#consultation">Accès en consultation</a></li>
-	<li>call back réservations</li>
-	<hr>};
+	# print qq{<h4><img alt="what's new'" src="/images/new_small.gif" style="height:12px; width:31px"> What's new</h4>
+	# <li><a href="https://wiki.epfl.ch/resfaq#q1">Notifications aux utilisateurs d'une ressource</a></li>
+	# <li><a href="https://wiki.epfl.ch/resfaq#consultation">Accès en consultation</a></li>
+	# <li>call back réservations</li>
+	# <hr>};
  
     checkDoRenew();
 
@@ -5375,4 +5380,3 @@ sub getCallBack {
 	my $callback = $sth->fetchrow_hashref;
 	return $callback ;
 }
-
