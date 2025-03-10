@@ -196,19 +196,6 @@ createGroup () {
   fi
 }
 
-addAdminToGroup () {
-  local _ADMIN="$1" # Either a group or a sciper!
-  local _GRP_ID="$2"
-  curl -s --request POST \
-      --url https://api.epfl.ch/v1/groups/$_GRP_ID/admins \
-      --header 'accept: application/json' \
-      --header "$AUTHORIZATION" \
-      --header 'content-type: application/json' \
-      --data '{
-        "id": "'"$_ADMIN"'"
-      }'
-}
-
 addMembersToGroup () {
   local _MEMBERS="$1" # comma separated list
   local _GRP_ID="$2"
@@ -222,6 +209,21 @@ addMembersToGroup () {
     }'
 }
 
+addAdminToGroup () {
+  local _ADMIN="$1" # Either a group or a sciper!
+  local _GRP_ID="$2"
+  curl -s --request POST \
+      --url https://api.epfl.ch/v1/groups/$_GRP_ID/admins \
+      --header 'accept: application/json' \
+      --header "$AUTHORIZATION" \
+      --header 'content-type: application/json' \
+      --data '{
+        "id": "'"$_ADMIN"'"
+      }'
+}
+
+
+
 
 if [ "$DEBUG" = true ]; then echo "--------------------------------------------------------------------"; fi
 if [ "$DEBUG" = true ]; then echo "ADMIN_GROUP:"; fi
@@ -230,6 +232,8 @@ searchGroup "$ADMIN_GROUP"
 if [ "$DEBUG" = true ]; then echo "  - create ´$ADMIN_GROUP´"; fi
 createGroup "$ADMIN_GROUP" "Admins for the $GROUP_DESCRIPTION"
 ADMIN_GROUP_ID=$NEW_GROUP_ID
+if [ "$DEBUG" = true ]; then echo "  - add people in the admin list ($ADMIN_LIST) as member of ´$BOOKING_GROUP´"; fi
+addMembersToGroup "$ADMIN_LIST,S36745" "$ADMIN_GROUP_ID"
 if [ "$DEBUG" = true ]; then echo "  - add ´super_admin_reservations´ (S36745) to ´$ADMIN_GROUP´"; fi
 addAdminToGroup "S36745" "$ADMIN_GROUP_ID"
 if [ "$DEBUG" = true ]; then echo "  - add people in the admin list ($ADMIN_LIST) to the group ´$ADMIN_GROUP´"; fi
@@ -237,8 +241,7 @@ for _admin in "${ADMIN_LIST_ARRAY[@]}"; do
   if [ "$DEBUG" = true ]; then echo "    - adding ´$_admin´ to the group ´$ADMIN_GROUP´"; fi
   addAdminToGroup "$_admin" "$ADMIN_GROUP_ID"
 done
-if [ "$DEBUG" = true ]; then echo "  - add people in the admin list ($ADMIN_LIST) as member of ´$BOOKING_GROUP´"; fi
-addMembersToGroup "$ADMIN_LIST,S36745" "$ADMIN_GROUP_ID"
+
 
 if [ "$DEBUG" = true ]; then echo "BOOKING_GROUP:"; fi
 if [ "$DEBUG" = true ]; then echo "  - check if ´$BOOKING_GROUP exists"; fi
@@ -246,11 +249,17 @@ searchGroup "$BOOKING_GROUP"
 if [ "$DEBUG" = true ]; then echo "  - create ´$BOOKING_GROUP´"; fi
 createGroup "$BOOKING_GROUP" "People allowed to book $GROUP_DESCRIPTION"
 BOOKING_GROUP_ID=$NEW_GROUP_ID
+
+if [ "$DEBUG" = true ]; then echo "  - add people in the member list ($MEMBER_LIST) as member of ´$BOOKING_GROUP´"; fi
+addMembersToGroup "$MEMBER_LIST" "$BOOKING_GROUP_ID"
+if [ "$DEBUG" = true ]; then echo "  - add people in the member list ($ADMIN_GROUP_ID) as member of ´$BOOKING_GROUP´"; fi
+addMembersToGroup "$ADMIN_GROUP_ID" "$BOOKING_GROUP_ID"
+if [ "$DEBUG" = true ]; then echo "  - add people in the member list (S36745) as member of ´$BOOKING_GROUP´"; fi
+addMembersToGroup "S36745" "$BOOKING_GROUP_ID"
+if [ "$DEBUG" = true ]; then echo "  - add people in the member list ($ADMIN_LIST) as member of ´$BOOKING_GROUP´"; fi
+addMembersToGroup "$ADMIN_LIST" "$BOOKING_GROUP_ID"
 if [ "$DEBUG" = true ]; then echo "  - add ´super_admin_reservations´ (S36745) to ´$BOOKING_GROUP´"; fi
 addAdminToGroup "S36745" "$BOOKING_GROUP_ID"
 if [ "$DEBUG" = true ]; then echo "  - add ´$ADMIN_GROUP´ ($ADMIN_GROUP_ID) to ´$BOOKING_GROUP´"; fi
 addAdminToGroup "$ADMIN_GROUP_ID" "$BOOKING_GROUP_ID"
-if [ "$DEBUG" = true ]; then echo "  - add people in the admin list ($ADMIN_LIST) as member of ´$BOOKING_GROUP´"; fi
-addMembersToGroup "$ADMIN_LIST" "$BOOKING_GROUP_ID"
-if [ "$DEBUG" = true ]; then echo "  - add people in the member list ($MEMBER_LIST) as member of ´$BOOKING_GROUP´"; fi
-addMembersToGroup "$MEMBER_LIST" "$BOOKING_GROUP_ID"
+
