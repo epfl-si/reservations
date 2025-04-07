@@ -55,9 +55,9 @@
         namespace: '{{ openshift_namespace }}'
       type: Opaque
       data:
-        dbs.conf: '{{ _dbs_conf | base64 }}'
-        access_params: '{{ _access_params | base64 }}'
-        secrets.conf: '{{ _secrets_conf | base64 }}'
+        dbs.conf: '{{ _dbs_conf | b64encode }}'
+        access_params: '{{ _access_params | b64encode }}'
+        secrets.conf: '{{ _secrets_conf | b64encode }}'
 
 - name: Set ConfigMap content
   set_fact:
