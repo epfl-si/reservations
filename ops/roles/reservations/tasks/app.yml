@@ -1,0 +1,217 @@
+- name: Pull Secret
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Secret
+      type: kubernetes.io/dockerconfigjson
+      metadata:
+        name: reservations-pull-secret
+        namespace: "{{ openshift_namespace }}"
+      data:
+        .dockerconfigjson: "{{ pull_secret_config | to_json | b64encode }}"
+
+- name: Service Account
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: reservations
+        namespace: "{{ openshift_namespace }}"
+      imagePullSecrets:
+        - name: reservations-pull-secret
+
+- name: Set _dbs_conf
+  set_fact:
+    _dbs_conf: |
+      {% for k, el in keybase_secrets.cadi_dbs.items() %}
+      {{ k }}	{{ el.db_name }}	{{ el.db_host }}	{{ el.db_user }}	{{ el.db_pass }}
+      {% endfor %}
+      
+- name: Set _access_params
+  set_fact:
+    _access_params: |
+      $superuser = 'cionca';
+      $rc4key = '{{ keybase_secrets.rc4_key }}';
+      $aeskey = '{{ keybase_secrets.aes_key }}';
+
+- name: Set _secrets_conf
+  set_fact:
+    _secrets_conf: |
+      {% for k, v in keybase_secrets.reservations_secrets_conf.items() %}
+      {{ k }}	{{ v }}
+      {% endfor %}
+      {# Squelchs a “Secret guests.aeskey not found in Secrets config file” warning
+         when loading Cadi::WSUtils #}
+      guests.aeskey	nada
+
+- name: Secret
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: reservations-secrets
+        namespace: '{{ openshift_namespace }}'
+      type: Opaque
+      data:
+        dbs.conf: '{{ _dbs_conf | base64 }}'
+        access_params: '{{ _access_params | base64 }}'
+        secrets.conf: '{{ _secrets_conf | base64 }}'
+
+- name: Set ConfigMap content
+  set_fact:
+    reservations_config_data: >-
+      {{
+        {
+          "E2EM_LINE": "prod" if inventory_environment == "prod" else "preprod",
+          "MOCK_ORACLE": "0" if inventory_environment == "prod" else "1",
+          "SITE_URL": reservations_hostname
+        }
+        | combine({
+          "MOCK_EMAIL_TO": "isas-fsd@groupes.epfl.ch",
+          "TEQUILA_HOST": tequila_hostname,
+          "TOP_PAGE_BANNER": "*** ATTENTION : vous &ecirc;tes sur une version de TEST ***"
+        } if inventory_environment != "prod" else {})
+      }}
+
+- name: Config Map
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: reservations-conf
+        namespace: "{{ openshift_namespace }}"
+      data: "{{ reservations_config_data }}"
+
+- name: Service
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        annotations:
+          openshift.io/generated-by: OpenShiftWebConsole
+        labels:
+          app: reservations
+        name: reservations-service
+        namespace: "{{ openshift_namespace }}"
+      spec:
+        ports:
+          - name: 8080-tcp
+            port: 8080
+            protocol: TCP
+            targetPort: 8080
+        selector:
+          app: reservations
+        type: ClusterIP
+
+- name: Routes
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: route.openshift.io/v1
+      kind: Route
+      metadata:
+        labels:
+          app: reservations
+          route: "{{ route_visibility }}"
+        name: "{{ reservations_hostname }}"
+        namespace: "{{ openshift_namespace }}"
+        annotations:
+          haproxy.router.openshift.io/balance: roundrobin
+          haproxy.router.openshift.io/disable_cookies: 'true'
+      spec:
+        host: "{{ reservations_hostname }}"
+        to:
+          kind: Service
+          name: reservations-service
+          weight: 100
+        port:
+          targetPort: 8080-tcp
+        tls:
+          termination: edge
+          insecureEdgeTerminationPolicy: Redirect
+
+- name: Deployment
+  kubernetes.core.k8s:
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: reservations
+        namespace: "{{ openshift_namespace }}"
+      spec:
+        replicas: 1
+        strategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxUnavailable: 0
+        selector:
+          matchLabels:
+            app: reservations
+        template:
+          metadata:
+            labels:
+              app: reservations
+          spec:
+            serviceAccountName: reservations
+            containers:
+              - image: "{{ quay_registry }}/{{ app_image_name }}:{{ app_image_tag }}"
+                imagePullPolicy: Always
+                name: reservations
+                ports:
+                  - containerPort: 8080
+                resources:
+                  requests:
+                    cpu: "500m"
+                    memory: "1Gi"
+                  limits:
+                    cpu: "1"
+                    memory: "1Gi"
+                envFrom:
+                  - configMapRef:
+                      name: reservations-conf
+                livenessProbe:
+                  tcpSocket:
+                    port: 8080
+                  initialDelaySeconds: 15
+                  timeoutSeconds: 10
+                  periodSeconds: 20
+                readinessProbe:
+                  tcpSocket:
+                    port: 8080
+                  initialDelaySeconds: 15
+                  timeoutSeconds: 10
+                  periodSeconds: 10
+                volumeMounts:
+                  - name: reservations-secrets
+                    mountPath: /opt/dinfo/etc
+                  - name: reservations-secrets
+                    subPath: access_params
+                    mountPath: /var/www/vhosts/app/private/etc/access_params
+                  - name: reservations-imagemaps
+                    mountPath: /var/www/vhosts/app/htdocs/.maps
+            volumes:
+              - name: reservations-secrets
+                secret:
+                  secretName: reservations-secrets
+              - name: reservations-imagemaps
+                emptyDir: {}
+
+- name: App restart
+  when: >-
+    "app.restart" in ansible_run_tags
+  kubernetes.core.k8s:
+    state: patched
+    kind: Deployment
+    definition:
+      metadata:
+        name: ticketshop
+        namespace: "{{ openshift_namespace }}"
+      spec:
+        template:
+          metadata:
+            annotations:
+              last-restart: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+  tags: app.restart

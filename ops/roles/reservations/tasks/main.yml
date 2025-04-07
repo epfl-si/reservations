@@ -1,19 +1,21 @@
-- tags: always
-  include_vars: reservations-vars.yml
-
-- include_tasks:
-    file: reservations-build-tasks.yml
+- name: "Reservations - Image"
+  when:
+    - inventory_environment == "test"
+  include_tasks:
+    file: image.yml
     apply:
       tags:
-        - reservations.build
+        - image
   tags:
-  - reservations.build
-  - reservations.promote
+    - image
+    - image.startbuild
 
-- include_tasks:
-    file: reservations-openshift-run-tasks.yml
+- name: "Reservations - App"
+  include_tasks:
+    file: app.yml
     apply:
       tags:
-        - reservations.run
-  tags:
-  - reservations.run
+        - app
+  tags: 
+    - app
+    - app.restart
