@@ -13,4 +13,4 @@ builder_pull_secret_config:
       "auth": "{{ _pull_robot_builder_credential | b64encode }}"
 
 reservations_git_repository: https://github.com/epfl-si/reservations
-reservations_git_branch: feature/migrate-to-os4
+reservations_git_branch: main
