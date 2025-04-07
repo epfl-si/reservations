@@ -2,73 +2,76 @@
 #
 # This is a wrapper around ansible / ansible-playbook.
 #
-# Usage ("ansible" mode):
-#
-#   ./reservasible -m raw all -a 'date'
-#
-# Usage ("ansible-playbook" mode):
-#
-#   ./reservasible -l prod
-#
+# Easy to use with ansible (default is --test)
+#   ./ansible/resasible --test
+#   ./ansible/resasible --prod
 #
 # If you are unfamiliar with Ansible, read up on it at
 # - https://www.ansible.com/overview/how-ansible-works
 # - https://github.com/jdauphant/awesome-ansible
 
-cd "$(dirname "$0")"; cd "$(/bin/pwd)"
+set -e
+cd "$(cd "$(dirname "$0")"; pwd)"
 
-ensure_ansible () {
+help () {
+    fatal <<HELP_MSG
+Usage:
+
+  $0 [ -t sometag ] [OPTION]
+
+Options:
+  --test        Deploy to test environment
+  --prod        Deploy to production environment
+  --help        Display this help
+
+HELP_MSG
+}
+
+ensure_suitcase () {
     if ! test -f ansible-deps-cache/.versions 2>/dev/null; then
-        curl https://raw.githubusercontent.com/epfl-si/ansible.suitcase/master/install.sh | \
+      curl https://raw.githubusercontent.com/epfl-si/ansible.suitcase/master/install.sh | \
             SUITCASE_DIR=$PWD/ansible-deps-cache \
-            SUITCASE_ANSIBLE_VERSION=7.1.0 \
-            SUITCASE_PIP_EXTRA="docker kubernetes" \
-            SUITCASE_ANSIBLE_REQUIREMENTS=requirements.yml \
+            SUITCASE_PIP_EXTRA="kubernetes" \
+            SUITCASE_ANSIBLE_VERSION=10.3.0 \
+            SUITCASE_WITH_KEYBASE=1 \
             bash -x
     fi
-
-    . "$PWD"/ansible-deps-cache/lib.sh
+    . ansible-deps-cache/lib.sh
     ensure_ansible_runtime
 }
 
-inventory_mode="test"
-inventories () {
-    case "$inventory_mode" in
-        *test*)    echo "-i inventory/test.yml" ;;
-    esac
-    case "$inventory_mode" in
-        *prod*)    echo "-i inventory/prod.yml" ;;
-    esac
+ensure_login_oc () {
+    local cluster_url=$1
+
+    if ! oc whoami > /dev/null 2>&1 || ! oc whoami --show-server | grep -q "$cluster_url"; then
+        echo "Logging into OpenShift cluster at $cluster_url..."
+        if ! oc login "$cluster_url" --web; then
+            echo "Login failed. Exiting."
+            exit 1
+        fi
+    else
+        echo "Already logged into $cluster_url."
+    fi
 }
 
-ensure_docker_login_with_oc_credentials () {
-    [ -n "$schnell" ] && return 0
-    ensure_oc_login
-    GASPAR="$(oc whoami)"
-    echo >&2 "Logging in to os-docker-registry.epfl.ch using the OpenShift token..."
-    docker login os-docker-registry.epfl.ch -u $GASPAR -p "$(oc whoami -t)"
-}
+ensure_suitcase
 
-###########################################################################
+[ "$1" == "--help" ] && help
 
-set -e
-
-ensure_ansible
-
-mode=ansible-playbook
 declare -a ansible_args
-ansible_args=(-e "resasible_dir=$OLDPWD")
-
+inventory_mode="test"
+cluster_url="https://api.ocpitst0001.xaas.epfl.ch:6443"
+namespace="svc0102t-reservations"
 while [ "$#" -gt 0 ]; do
-  case "$1" in
-        -m) mode=ansible
-            ansible_args+=("-m")
+    case "$1" in
+        --help)
+            help ;;
+        --test)
             shift ;;
         --prod)
-            inventory_mode="$inventory_mode prod"
-            shift ;;
-        --schnell)
-            schnell=1
+            inventory_mode="prod"
+            cluster_url="https://api.ocpitsp0001.xaas.epfl.ch:6443"
+            namespace="svc0102p-reservations"
             shift ;;
         *)
             ansible_args+=("$1")
@@ -76,14 +79,22 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-ensure_docker_login_with_oc_credentials
+ensure_login_oc "$cluster_url"
 
-case "$mode" in
-    ansible-playbook)
-        ansible-playbook $playbook_flags $(inventories) "${ansible_args[@]}" \
-                         playbook.yml
-        ;;
-    ansible)
-        ansible $(inventories) "${ansible_args[@]}"
-        ;;
-esac
+# Attempt to switch to the target namespace
+if ! oc project "$namespace" >/dev/null 2>&1; then
+    echo "Failed to switch to namespace '$namespace'."
+    exit 1
+else
+    echo "Successfully switched to namespace '$namespace'."
+fi
+
+inventories () {
+    case "$inventory_mode" in
+        test) echo "-i inventory/test.yml" ;;
+        prod) echo "-i inventory/prod.yml" ;;
+        *) fatal "Invalid inventory_mode" ;;
+    esac
+}
+
+ansible-playbook $(inventories) "${ansible_args[@]}" playbook.yml
