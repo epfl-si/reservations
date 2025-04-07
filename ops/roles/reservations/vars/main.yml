@@ -10,8 +10,6 @@ reservations_hostname: >-
   {{ "reservations.epfl.ch" if inventory_environment == "prod"
     else "reservations-preprod.epfl.ch" }}
 
-reservations_vhost_dir: ticketshop.epfl.ch
-
 apache_conf_log_level: >-
   {{ "error" if inventory_environment == "prod" else "debug" }}
 

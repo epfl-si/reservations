@@ -207,7 +207,7 @@
     kind: Deployment
     definition:
       metadata:
-        name: ticketshop
+        name: reservations
         namespace: "{{ openshift_namespace }}"
       spec:
         template:
